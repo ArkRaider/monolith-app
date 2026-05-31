@@ -1,0 +1,114 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "windows", "rhel-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+model User {
+  id               String   @id // Clerk user ID
+  email            String   @unique
+  displayName      String
+  handle           String   @unique
+  avatarUrl        String?
+  subjects         String[]
+  focusPreference  String?
+  defaultAmbience  String?
+  bio              String?
+  instagram        String?
+  twitter          String?
+  github           String?
+  bannerUrl        String?
+  currentGrind     String?
+  programmingTools String[]
+  activeGoals      String[]
+  customLinks      String[]
+  xp               Int      @default(0)
+  lastActive       DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  roomsCreated     Room[]   @relation("RoomCreator")
+  rooms            Room[]   @relation("RoomParticipants")
+  savedRooms       Room[]   @relation("SavedRooms")
+  roomStats        RoomStats[] @relation("UserRoomStats")
+  goalItems        GoalItem[]  @relation("UserGoals")
+  dailyActivities  DailyActivity[] @relation("UserActivity")
+  sentMessages     DirectMessage[] @relation("SentMessages")
+  receivedMessages DirectMessage[] @relation("ReceivedMessages")
+}
+
+model GoalItem {
+  id               String    @id @default(uuid())
+  userId           String
+  roomId           String?
+  title            String
+  isCompleted      Boolean   @default(false)
+  completedAt      DateTime?
+  xpWeight         Int
+  estimatedMinutes Int       @default(25)
+  complexity       String    @default("MEDIUM")
+  createdAt        DateTime  @default(now())
+  user             User      @relation("UserGoals", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DailyActivity {
+  id             String   @id @default(uuid())
+  userId         String
+  date           DateTime
+  minutesStudied Int      @default(0)
+  xpGained       Int      @default(0)
+  xpGoal         Int      @default(100)
+  user           User     @relation("UserActivity", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+model Room {
+  id                String   @id @default(uuid())
+  slug              String   @unique
+  name              String
+  subject           String
+  capacity          Int
+  visibility        String   // PUBLIC, UNLISTED, PRIVATE
+  vibe              String?
+  lockOnJoin        Boolean  @default(false)
+  defaultAmbience   String?
+  password          String?
+  allowMic          Boolean  @default(true)
+  allowCam          Boolean  @default(true)
+  isDefaultRoom     Boolean  @default(false)
+  globalChatEnabled Boolean  @default(true)
+  creatorId         String
+  creator           User     @relation("RoomCreator", fields: [creatorId], references: [id])
+  participants      User[]   @relation("RoomParticipants")
+  savedBy           User[]   @relation("SavedRooms")
+  stats             RoomStats[] @relation("RoomStats")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model RoomStats {
+  id           String   @id @default(uuid())
+  userId       String
+  roomId       String
+  totalMinutes Int      @default(0)
+  user         User     @relation("UserRoomStats", fields: [userId], references: [id], onDelete: Cascade)
+  room         Room     @relation("RoomStats", fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roomId])
+}
+
+model DirectMessage {
+  id          String   @id @default(uuid())
+  senderId    String
+  receiverId  String
+  content     String
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  sender      User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver    User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+}
