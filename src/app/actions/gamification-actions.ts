@@ -17,7 +17,7 @@ export async function getRoomLeaderboard(roomSlug: string) {
       take: 10,
     });
 
-    return stats.map((stat) => ({
+    return stats.map((stat: any) => ({
       id: stat.userId,
       handle: stat.user.handle,
       displayName: stat.user.displayName,
