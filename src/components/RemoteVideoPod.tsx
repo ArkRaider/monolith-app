@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as Popover from '@radix-ui/react-popover';
 import { getUserProfile } from '@/app/actions/user-actions';
 import { calculateLevel } from '@/lib/title-calculator';
-import { MoreVertical, ExternalLink, MessageSquare, User } from 'lucide-react';
+import { MoreVertical, ExternalLink, MessageSquare, User, ShieldAlert } from 'lucide-react';
 import Link from 'next/link';
 
 // Sanitize social links
@@ -51,7 +51,7 @@ interface UserProfileData {
   xp: number;
 }
 
-export function RemoteVideoPod({ stream, handle, userId }: { stream: MediaStream | null, handle: string, userId?: string }) {
+export function RemoteVideoPod({ stream, handle, userId, isAdmin, onKick }: { stream: MediaStream | null, handle: string, userId?: string, isAdmin?: boolean, onKick?: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [profile, setProfile] = useState<UserProfileData | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -112,12 +112,12 @@ export function RemoteVideoPod({ stream, handle, userId }: { stream: MediaStream
   };
   
   return (
-    <div className="w-full h-full relative overflow-hidden bg-background border-[length:var(--border-weight)] border-border group">
+    <div className="w-full h-full relative overflow-hidden bg-black border-[length:var(--border-weight)] border-border group">
       <video
         ref={videoRef}
         autoPlay
         playsInline
-        className={`w-full h-full object-cover transition-opacity duration-200 ${!isVideoActive ? 'opacity-0 absolute inset-0' : 'opacity-100'}`}
+        className={`w-full h-full object-contain transition-opacity duration-200 ${!isVideoActive ? 'opacity-0 absolute inset-0' : 'opacity-100'}`}
       />
 
       {/* Avatar overlay when remote cam is off */}
@@ -187,6 +187,18 @@ export function RemoteVideoPod({ stream, handle, userId }: { stream: MediaStream
                   <User size={14} className="text-secondary" />
                   View Profile
                 </button>
+                {isAdmin && onKick && (
+                  <button
+                    onClick={() => {
+                      onKick();
+                      setIsOpen(false);
+                    }}
+                    className="flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-red-500/10 transition-colors text-xs font-[family-name:var(--font-primary)] font-bold uppercase tracking-wider text-left border-t border-border"
+                  >
+                    <ShieldAlert size={14} />
+                    Kick User
+                  </button>
+                )}
               </div>
             ) : (
               // Stage 2: Profile card

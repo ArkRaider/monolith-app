@@ -2,7 +2,7 @@
 
 import { useState, KeyboardEvent, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignaling } from '@/hooks/useSignaling';
 import { useWebRTC } from '@/hooks/useWebRTC';
@@ -17,6 +17,7 @@ import { Palette, PanelRightClose, PanelRightOpen, LogOut, MessageSquare } from 
 import { toggleSaveRoom } from '@/app/actions/room-actions';
 import { getRoomLeaderboard } from '@/app/actions/gamification-actions';
 import { useInbox } from '@/context/InboxContext';
+import { isRoomAdmin } from '@/lib/roles';
 
 interface StudioClientProps {
   slug: string;
@@ -40,6 +41,7 @@ export default function StudioClient({ slug, initialPwd, roomId, initialIsSaved,
   const [isSaved, setIsSaved] = useState(initialIsSaved || false);
   const [isSaving, setIsSaving] = useState(false);
 
+  const router = useRouter();
   const { theme, setTheme } = useTheme();
   const { toggleInbox, totalUnread } = useInbox();
 
@@ -64,9 +66,14 @@ export default function StudioClient({ slug, initialPwd, roomId, initialIsSaved,
 
   // Stable object for useSignaling — shape matches what the hook expects.
   const currentUser = { handle: displayName, id: activeUserId };
-
+  const isAdmin = isRoomAdmin(activeUserId, creatorId);
 
   const { isConnected, messages, sendMessage, socket } = useSignaling(slug, currentUser, pwd);
+
+  const handleKick = (targetSocketId: string, targetUserId?: string) => {
+    if (!socket || !slug) return;
+    socket.emit('admin:kick_user', { roomId: slug, targetUserId, targetSocketId });
+  };
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
 
   // GAMIFICATION STATE
@@ -84,8 +91,20 @@ export default function StudioClient({ slug, initialPwd, roomId, initialIsSaved,
        // Only ping if the user actually has stream tracks enabled to prevent AFK farming
        socket.emit('activity:ping');
     }, 60000); // 1-minute heartbeat
-    return () => clearInterval(interval);
-  }, [socket]);
+    
+    const handleKicked = () => {
+      alert("You have been removed from the room by the admin.");
+      if (socket.connected) socket.disconnect();
+      router.push('/dashboard');
+    };
+    
+    socket.on('kicked_from_room', handleKicked);
+
+    return () => {
+      clearInterval(interval);
+      socket.off('kicked_from_room', handleKicked);
+    };
+  }, [socket, router]);
 
   useEffect(() => {
     if (!initCam && !initMic) return;
@@ -300,6 +319,8 @@ export default function StudioClient({ slug, initialPwd, roomId, initialIsSaved,
               stream={peer.stream}
               handle={peer.user?.handle || 'Unknown'}
               userId={peer.user?.id}
+              isAdmin={isAdmin}
+              onKick={() => handleKick(peer.peerID, peer.user?.id)}
             />
           ))}
         </div>

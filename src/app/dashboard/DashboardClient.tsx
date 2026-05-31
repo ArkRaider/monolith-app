@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Bookmark } from 'lucide-react';
 
 interface Room {
@@ -21,6 +22,25 @@ interface Room {
 export function DashboardClient({ initialRooms, clerkId }: { initialRooms: Room[], clerkId?: string }) {
   const [rooms, setRooms] = useState<Room[]>(initialRooms);
   const [liveHeadcounts, setLiveHeadcounts] = useState<Record<string, number>>({});
+  const [isCreatingSolo, setIsCreatingSolo] = useState(false);
+  const router = useRouter();
+
+  const handleCreateSolo = async () => {
+    setIsCreatingSolo(true);
+    try {
+      const res = await fetch('/api/rooms/solo', { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to create solo room');
+      const data = await res.json();
+      if (data.room?.slug) {
+        router.push(`/room/${data.room.slug}/studio`);
+      } else {
+        throw new Error('No slug returned');
+      }
+    } catch (err) {
+      console.error(err);
+      setIsCreatingSolo(false);
+    }
+  };
 
   // Global headcount socket
   useEffect(() => {
@@ -43,8 +63,15 @@ export function DashboardClient({ initialRooms, clerkId }: { initialRooms: Room[
       {/* MAIN CONTENT */}
       <main className="flex-1 overflow-y-auto">
         <div className="p-6">
-          <div className="mb-8 border-b border-border pb-4">
+          <div className="mb-8 border-b border-border pb-4 flex justify-between items-center">
             <h1 className="text-2xl font-bold tracking-tight font-[family-name:var(--font-primary)]">MONOLITH // STUDIOS</h1>
+            <button
+              onClick={handleCreateSolo}
+              disabled={isCreatingSolo}
+              className="bg-foreground text-background px-4 py-2 text-xs font-[family-name:var(--font-primary)] font-bold uppercase hover:bg-primary hover:text-background transition-colors disabled:opacity-50"
+            >
+              {isCreatingSolo ? "Generating..." : "Create Solo Space"}
+            </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">

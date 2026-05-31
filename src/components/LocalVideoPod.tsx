@@ -41,13 +41,13 @@ export function LocalVideoPod({ stream, state, onStateChange, isVideoOff, displa
   if (state === 'hidden') return null;
 
   return (
-    <div className="w-full h-full relative overflow-hidden bg-background border border-border group flex items-center justify-center">
+    <div className="w-full h-full relative overflow-hidden bg-black border border-border group flex items-center justify-center">
       <video
         ref={videoRef}
         muted
         autoPlay
         playsInline
-        className={`w-full h-full object-cover transition-opacity duration-200 ${isVideoOff ? 'opacity-0 absolute inset-0' : 'opacity-100'}`}
+        className={`w-full h-full object-contain transition-opacity duration-200 ${isVideoOff ? 'opacity-0 absolute inset-0' : 'opacity-100'}`}
       />
 
       {/* Avatar overlay when camera is off */}
