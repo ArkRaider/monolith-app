@@ -25,7 +25,7 @@ export function DashboardClient({ initialRooms, clerkId }: { initialRooms: Room[
   // Global headcount socket
   useEffect(() => {
     let active = true;
-    const socket = io('http://127.0.0.1:3001', { transports: ['websocket'] });
+    const socket = io(process.env.NEXT_PUBLIC_SIGNALING_URL || 'https://monolith-signaling-server.onrender.com', { transports: ['websocket'] });
     socket.on('global-headcount-update', ({ roomId, liveCount }) => {
       if (!active) return;
       setLiveHeadcounts(prev => ({ ...prev, [roomId]: liveCount }));

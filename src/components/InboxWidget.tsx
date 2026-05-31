@@ -41,7 +41,7 @@ let dmSocket: Socket | null = null;
 
 function getDmSocket(): Socket {
   if (!dmSocket) {
-    dmSocket = io('http://127.0.0.1:3001', {
+    dmSocket = io(process.env.NEXT_PUBLIC_SIGNALING_URL || 'https://monolith-signaling-server.onrender.com', {
       transports: ['websocket'],
       autoConnect: true,
     });
@@ -54,8 +54,8 @@ function getDmSocket(): Socket {
 // ─────────────────────────────────────────────────────────────────────────────
 export function InboxWidget() {
   const { user, isLoaded } = useUser();
-  const { notify }         = useNotification();
-  const pathname           = usePathname();
+  const { notify } = useNotification();
+  const pathname = usePathname();
 
   // ── Global open/close from InboxContext ────────────────────────────────────
   // This allows StudioClient to call openInbox() from the control bar
@@ -74,21 +74,21 @@ export function InboxWidget() {
   const isInRoom = pathname?.startsWith('/room');
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeConv, setActiveConv]       = useState<ConvPartner | null>(null);
-  const [messages, setMessages]           = useState<DMMessage[]>([]);
-  const [draft, setDraft]                 = useState('');
-  const [sending, setSending]             = useState(false);
+  const [activeConv, setActiveConv] = useState<ConvPartner | null>(null);
+  const [messages, setMessages] = useState<DMMessage[]>([]);
+  const [draft, setDraft] = useState('');
+  const [sending, setSending] = useState(false);
   const [totalUnread, setTotalUnreadLocal] = useState(0);
-  const [openingDm, setOpeningDm]         = useState(false);
+  const [openingDm, setOpeningDm] = useState(false);
 
   const setTotalUnread = (n: number) => {
     setTotalUnreadLocal(n);
     setContextUnread(n); // keep context badge in sync for studio trigger
   };
 
-  const messagesEndRef  = useRef<HTMLDivElement>(null);
-  const activeConvRef   = useRef<ConvPartner | null>(null);
-  const socketRef       = useRef<Socket | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const activeConvRef = useRef<ConvPartner | null>(null);
+  const socketRef = useRef<Socket | null>(null);
 
   // Keep ref in sync
   useEffect(() => { activeConvRef.current = activeConv; }, [activeConv]);
@@ -168,15 +168,15 @@ export function InboxWidget() {
       setTotalUnread(list.reduce((sum, c) => sum + (c.unread ?? 0), 0));
     };
 
-    socket.on('connect',              onConnect);
-    socket.on('dm:receive',           onDmReceive);
-    socket.on('dm:history:res',       onHistoryRes);
+    socket.on('connect', onConnect);
+    socket.on('dm:receive', onDmReceive);
+    socket.on('dm:history:res', onHistoryRes);
     socket.on('dm:conversations:res', onConversationsRes);
 
     return () => {
-      socket.off('connect',              onConnect);
-      socket.off('dm:receive',           onDmReceive);
-      socket.off('dm:history:res',       onHistoryRes);
+      socket.off('connect', onConnect);
+      socket.off('dm:receive', onDmReceive);
+      socket.off('dm:history:res', onHistoryRes);
       socket.off('dm:conversations:res', onConversationsRes);
     };
   }, [isLoaded, user]);
@@ -199,10 +199,10 @@ export function InboxWidget() {
       if (peerId) {
         // Fast path — we have the DB id directly
         openConversation({
-          id:          peerId,
-          handle:      handle ?? peerId,
+          id: peerId,
+          handle: handle ?? peerId,
           displayName: handle ?? peerId,
-          avatarUrl:   null,
+          avatarUrl: null,
         });
         // Fetch richer profile data in background
         try {
@@ -263,16 +263,16 @@ export function InboxWidget() {
         <div
           className="w-[320px] h-[440px] flex flex-col overflow-hidden"
           style={{
-            background:   'var(--color-surface)',
-            border:       'var(--border-weight) solid var(--color-border)',
-            boxShadow:    'var(--ui-shadow)',
+            background: 'var(--color-surface)',
+            border: 'var(--border-weight) solid var(--color-border)',
+            boxShadow: 'var(--ui-shadow)',
           }}
         >
           {/* Header */}
           <div
             className="flex items-center justify-between px-4 py-3 shrink-0"
             style={{
-              background:  'var(--color-surface-high)',
+              background: 'var(--color-surface-high)',
               borderBottom: 'var(--border-weight) solid var(--color-border)',
             }}
           >
@@ -424,8 +424,8 @@ export function InboxWidget() {
                   disabled={sending || !draft.trim()}
                   className="px-4 py-3 transition-colors disabled:opacity-30"
                   style={{
-                    color:       'var(--color-secondary)',
-                    borderLeft:  'var(--border-weight) solid var(--color-border)',
+                    color: 'var(--color-secondary)',
+                    borderLeft: 'var(--border-weight) solid var(--color-border)',
                   }}
                   onMouseEnter={e => { if (!sending && draft.trim()) (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-primary)'; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-secondary)'; }}
@@ -445,9 +445,9 @@ export function InboxWidget() {
           className="w-9 h-9 flex items-center justify-center transition-colors relative"
           style={{
             background: 'var(--color-surface)',
-            border:     'var(--border-weight) solid var(--color-border)',
-            boxShadow:  'var(--ui-shadow)',
-            color:      'var(--color-foreground)',
+            border: 'var(--border-weight) solid var(--color-border)',
+            boxShadow: 'var(--ui-shadow)',
+            color: 'var(--color-foreground)',
           }}
           onMouseEnter={e => {
             (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-primary)';
