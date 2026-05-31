@@ -42,7 +42,6 @@ let dmSocket: Socket | null = null;
 function getDmSocket(): Socket {
   if (!dmSocket) {
     dmSocket = io(process.env.NEXT_PUBLIC_SIGNALING_URL || 'https://monolith-signaling-server.onrender.com', {
-      transports: ['websocket'],
       autoConnect: true,
     });
   }
