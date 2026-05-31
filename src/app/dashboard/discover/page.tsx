@@ -10,7 +10,11 @@ export default async function DiscoverPage() {
 
   const publicRooms = await prisma.room.findMany({
     where: {
-      visibility: 'PUBLIC'
+      visibility: 'PUBLIC',
+      OR: [
+        { temporary: false },
+        { AND: [{ temporary: true }, { creatorId: userId || '' }] }
+      ]
     },
     include: {
       savedBy: userId ? {
@@ -45,7 +49,8 @@ export default async function DiscoverPage() {
                   </span>
                 )}
                 {userId && (
-                  <form action={async () => { 'use server'; await toggleSaveRoom(room.id); }}>
+                  <form action={toggleSaveRoom}>
+                    <input type="hidden" name="roomId" value={room.id} />
                     <button type="submit" className="text-secondary hover:text-primary transition-colors">
                       <Bookmark size={18} className={(room.savedBy && room.savedBy.length > 0) ? 'fill-primary text-primary' : ''} />
                     </button>

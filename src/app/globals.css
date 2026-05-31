@@ -354,6 +354,10 @@ textarea {
   .animate-delay-1400 {
     animation-delay: 1400ms;
   }
+
+  .glow-fire {
+    filter: drop-shadow(0 0 8px rgba(249,115,22,0.5));
+  }
 }
 
 /* Brutalist Minimalist Scrollbar */

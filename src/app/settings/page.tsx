@@ -24,7 +24,7 @@ export default async function SettingsPage() {
         Configure your social presence and state matrix.
       </p>
 
-      <form action={async (formData: FormData) => { await updateProfile(formData); }} className="space-y-8">
+      <form action={updateProfile} className="space-y-8">
         
         {/* Banner Section */}
         <div className="border-[length:var(--border-weight)] border-border bg-surface overflow-hidden relative group">

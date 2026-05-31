@@ -41,7 +41,7 @@ export function LocalVideoPod({ stream, state, onStateChange, isVideoOff, displa
   if (state === 'hidden') return null;
 
   return (
-    <div className="w-full h-full relative overflow-hidden bg-black border border-border group flex items-center justify-center">
+    <div className="w-full h-full relative overflow-hidden bg-black border border-border rounded-[2rem] group flex items-center justify-center">
       <video
         ref={videoRef}
         muted
@@ -82,9 +82,6 @@ export function LocalVideoPod({ stream, state, onStateChange, isVideoOff, displa
             <Maximize2 size={14} />
           </button>
         )}
-        <button onClick={() => onStateChange('hidden')} className="p-1.5 bg-surface-high border border-border text-secondary hover:text-red-400 active:scale-[0.98]">
-          <X size={14} />
-        </button>
       </div>
 
 

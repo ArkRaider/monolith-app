@@ -15,7 +15,7 @@ export async function POST() {
     // Generate a unique slug
     const slug = `solo-${Math.random().toString(36).substring(2, 9)}`;
 
-    const room = await prisma.room.create({
+      const room = await prisma.room.create({
       data: {
         slug,
         name: `${user.username || user.firstName || 'User'}'s Solo Space`,
@@ -27,6 +27,7 @@ export async function POST() {
         globalChatEnabled: false,
         allowMic: false,
         allowCam: true,
+        temporary: true,
       }
     });
 

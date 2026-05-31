@@ -3,10 +3,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { usePathname } from 'next/navigation';
-import { MessageSquare, X, ArrowLeft, Send } from 'lucide-react';
+import { MessageSquare, X, ArrowLeft, Send, UserPlus, Check, Trash2, ExternalLink } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
+import * as Popover from '@radix-ui/react-popover';
+import { getUserProfile } from '@/app/actions/user-actions';
+import { calculateLevel } from '@/lib/title-calculator';
 import { useNotification } from '@/context/NotificationContext';
 import { useInbox } from '@/context/InboxContext';
+import { getFriendRequests, acceptFriendRequest, rejectFriendRequest } from '@/app/actions/friend-actions';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -34,8 +38,7 @@ interface DMMessage {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Singleton socket — shared with the rest of the app (same origin as the
-// signaling server; DashboardClient already connects to port 3001)
+// Singleton socket
 // ─────────────────────────────────────────────────────────────────────────────
 let dmSocket: Socket | null = null;
 
@@ -56,22 +59,14 @@ export function InboxWidget() {
   const { notify } = useNotification();
   const pathname = usePathname();
 
-  // ── Global open/close from InboxContext ────────────────────────────────────
-  // This allows StudioClient to call openInbox() from the control bar
-  // without mounting a second copy of this component.
-  const { isOpen: open, toggleInbox: setOpenToggle, closeInbox, setTotalUnread: setContextUnread } = useInbox();
-  const setOpen = (val: boolean | ((prev: boolean) => boolean)) => {
-    if (typeof val === 'function') {
-      setOpenToggle(); // toggle
-    } else {
-      val ? setOpenToggle() : closeInbox();
-    }
-  };
+  const { isOpen: open, toggleInbox, openInbox, closeInbox, setTotalUnread: setContextUnread } = useInbox();
 
-  // ── Suppress the floating trigger button inside rooms ─────────────────────
-  // The panel overlay still works (opened via StudioClient's control bar).
   const isInRoom = pathname?.startsWith('/room');
 
+  // Tab State
+  const [activeTab, setActiveTab] = useState<'CHATS' | 'REQUESTS'>('CHATS');
+
+  // Chat State
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConv, setActiveConv] = useState<ConvPartner | null>(null);
   const [messages, setMessages] = useState<DMMessage[]>([]);
@@ -80,33 +75,68 @@ export function InboxWidget() {
   const [totalUnread, setTotalUnreadLocal] = useState(0);
   const [openingDm, setOpeningDm] = useState(false);
 
+  // Friend Requests State
+  const [friendRequests, setFriendRequests] = useState<any[]>([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
+
+  // Profile Preview State
+  const [profilePreview, setProfilePreview] = useState<any>(null);
+  const [loadingProfile, setLoadingProfile] = useState(false);
+  const [profilePopoverOpen, setProfilePopoverOpen] = useState(false);
+  const [bannerError, setBannerError] = useState(false);
+
   const setTotalUnread = (n: number) => {
     setTotalUnreadLocal(n);
-    setContextUnread(n); // keep context badge in sync for studio trigger
+    setContextUnread(n);
   };
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const activeConvRef = useRef<ConvPartner | null>(null);
   const socketRef = useRef<Socket | null>(null);
 
-  // Keep ref in sync
   useEffect(() => { activeConvRef.current = activeConv; }, [activeConv]);
 
-  // ── Auto-scroll ────────────────────────────────────────────────────────────
+  // Fetch Friend Requests
+  const fetchRequests = useCallback(async () => {
+    setLoadingRequests(true);
+    const requests = await getFriendRequests();
+    setFriendRequests(requests);
+    setLoadingRequests(false);
+  }, []);
+
+  // Fetch requests when open or when tab changes
+  useEffect(() => {
+    if (open && activeTab === 'REQUESTS') {
+      fetchRequests();
+    }
+  }, [open, activeTab, fetchRequests]);
+
+  const handleAcceptRequest = async (id: string) => {
+    await acceptFriendRequest(id);
+    await fetchRequests();
+    notify('Friend request accepted', 'Success');
+  };
+
+  const handleRejectRequest = async (id: string) => {
+    await rejectFriendRequest(id);
+    await fetchRequests();
+    notify('Friend request ignored', 'Success');
+  };
+
+  // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // ── Open a conversation ────────────────────────────────────────────────────
+  // Open a conversation
   const openConversation = useCallback((partner: ConvPartner) => {
     setActiveConv(partner);
     setMessages([]);
-    setOpen(true);
-    // Request message history from server
+    openInbox();
     socketRef.current?.emit('dm:history', { partnerId: partner.id });
-  }, []);
+  }, [openInbox]);
 
-  // ── Socket setup ───────────────────────────────────────────────────────────
+  // Socket setup
   useEffect(() => {
     if (!isLoaded || !user) return;
 
@@ -114,33 +144,25 @@ export function InboxWidget() {
     socketRef.current = socket;
 
     const onConnect = () => {
-      console.log('[InboxWidget] 🔗 Socket connected, registering userId:', user.id);
       socket.emit('dm:initialize', { userId: user.id });
-      socket.emit('dm:conversations'); // load initial conversation list
+      socket.emit('dm:conversations');
     };
 
-    // Register immediately if already connected
     if (socket.connected) {
       socket.emit('dm:initialize', { userId: user.id });
       socket.emit('dm:conversations');
     }
 
-    // ── dm:receive — incoming real-time message ──────────────────────────────
     const onDmReceive = (msg: DMMessage) => {
       const isIncoming = msg.senderId !== user.id;
 
-      // Fire toast for incoming messages when widget is closed or different thread is active
       if (isIncoming) {
         const isCurrentThread = activeConvRef.current?.id === msg.senderId;
         if (!open || !isCurrentThread) {
-          notify(
-            `@${msg.sender?.handle ?? 'Someone'} sent you a message`,
-            msg.sender?.handle
-          );
+          notify(`@${msg.sender?.handle ?? 'Someone'} sent you a message`, msg.sender?.handle);
         }
       }
 
-      // Append to active thread if this message belongs to the open conversation
       const partner = isIncoming ? msg.senderId : activeConvRef.current?.id;
       if (activeConvRef.current && (partner === activeConvRef.current.id || !isIncoming)) {
         setMessages(prev => {
@@ -149,18 +171,15 @@ export function InboxWidget() {
         });
       }
 
-      // Refresh conversation list to update last-message preview + unread badge
       socket.emit('dm:conversations');
     };
 
-    // ── dm:history:res — message thread loaded ───────────────────────────────
     const onHistoryRes = ({ partnerId, messages: msgs }: { partnerId: string; messages: DMMessage[] }) => {
       if (activeConvRef.current?.id === partnerId) {
         setMessages(Array.isArray(msgs) ? msgs : []);
       }
     };
 
-    // ── dm:conversations:res — conversation list loaded ──────────────────────
     const onConversationsRes = (convs: Conversation[]) => {
       const list = Array.isArray(convs) ? convs : [];
       setConversations(list);
@@ -178,32 +197,29 @@ export function InboxWidget() {
       socket.off('dm:history:res', onHistoryRes);
       socket.off('dm:conversations:res', onConversationsRes);
     };
-  }, [isLoaded, user]);
+  }, [isLoaded, user, open, notify]);
 
-  // ── Re-request history when active conversation changes ───────────────────
   useEffect(() => {
     if (activeConv && socketRef.current?.connected) {
       socketRef.current.emit('dm:history', { partnerId: activeConv.id });
     }
   }, [activeConv]);
 
-  // ── Global monolith:open-dm event (from video pod / activity panel) ────────
   useEffect(() => {
     const handler = async (e: Event) => {
       const { handle, userId: peerId } = (e as CustomEvent<{ handle: string; userId?: string }>).detail;
       if (!handle && !peerId) return;
 
-      setOpen(true);
+      openInbox();
+      setActiveTab('CHATS'); // force switch to chats
 
       if (peerId) {
-        // Fast path — we have the DB id directly
         openConversation({
           id: peerId,
           handle: handle ?? peerId,
           displayName: handle ?? peerId,
           avatarUrl: null,
         });
-        // Fetch richer profile data in background
         try {
           const res = await fetch(`/api/users/by-handle/${encodeURIComponent(handle ?? '')}`);
           if (res.ok) {
@@ -214,7 +230,6 @@ export function InboxWidget() {
         return;
       }
 
-      // Slow path — resolve handle → id
       setOpeningDm(true);
       try {
         const res = await fetch(`/api/users/by-handle/${encodeURIComponent(handle)}`);
@@ -231,9 +246,8 @@ export function InboxWidget() {
 
     window.addEventListener('monolith:open-dm', handler);
     return () => window.removeEventListener('monolith:open-dm', handler);
-  }, [openConversation]);
+  }, [openConversation, openInbox]);
 
-  // ── Send message ───────────────────────────────────────────────────────────
   const sendMessage = useCallback(() => {
     if (!draft.trim() || !activeConv || sending || !socketRef.current?.connected) return;
     setSending(true);
@@ -244,7 +258,6 @@ export function InboxWidget() {
       recipientId: activeConv.id,
       content,
     });
-    // Server will echo dm:receive back — no optimistic needed, sub-100ms round-trip
     setSending(false);
   }, [draft, activeConv, sending]);
 
@@ -253,14 +266,13 @@ export function InboxWidget() {
   const initials = (name: string) =>
     name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '??';
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  const unreadCount = totalUnread + friendRequests.length;
+
   return (
     <div className="fixed bottom-[4.75rem] right-4 z-[200] flex flex-col items-end gap-2">
-
-      {/* ── Inbox Panel overlay — visible on ALL routes when open ── */}
       {open && (
         <div
-          className="w-[320px] h-[440px] flex flex-col overflow-hidden"
+          className="w-[320px] h-[440px] flex flex-col overflow-hidden transition-all duration-200"
           style={{
             background: 'var(--color-surface)',
             border: 'var(--border-weight) solid var(--color-border)',
@@ -276,28 +288,146 @@ export function InboxWidget() {
             }}
           >
             {activeConv ? (
-              <button
-                onClick={() => { setActiveConv(null); setMessages([]); }}
-                className="flex items-center gap-2 transition-colors"
-                style={{ color: 'var(--color-secondary)' }}
-                onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-foreground)')}
-                onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-secondary)')}
-              >
-                <ArrowLeft size={14} />
-                <span className="font-[family-name:var(--font-primary)] text-[10px] uppercase font-bold tracking-widest">BACK</span>
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => { setActiveConv(null); setMessages([]); setProfilePopoverOpen(false); }}
+                  className="flex items-center gap-2 transition-colors"
+                  style={{ color: 'var(--color-secondary)' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-foreground)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-secondary)')}
+                >
+                  <ArrowLeft size={14} />
+                </button>
+                
+                <Popover.Root open={profilePopoverOpen} onOpenChange={async (open) => {
+                  setProfilePopoverOpen(open);
+                  if (open && (!profilePreview || profilePreview.id !== activeConv.id)) {
+                    setLoadingProfile(true);
+                    setBannerError(false);
+                    try {
+                      const data = await getUserProfile(activeConv.handle);
+                      setProfilePreview(data);
+                    } catch (e) {
+                      console.error(e);
+                    } finally {
+                      setLoadingProfile(false);
+                    }
+                  }
+                }}>
+                  <Popover.Trigger asChild>
+                    <button className="flex items-center gap-2 text-left group">
+                      <div className="w-6 h-6 bg-background border border-border flex items-center justify-center overflow-hidden shrink-0">
+                        {activeConv.avatarUrl ? (
+                          <img src={activeConv.avatarUrl} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="font-[family-name:var(--font-primary)] text-[8px] font-black text-foreground uppercase">{initials(activeConv.displayName)}</span>
+                        )}
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-[family-name:var(--font-primary)] text-[10px] font-bold text-foreground uppercase tracking-wider group-hover:text-primary transition-colors truncate">{activeConv.displayName}</span>
+                      </div>
+                    </button>
+                  </Popover.Trigger>
+                  <Popover.Portal>
+                    <Popover.Content
+                      className="bg-surface border-[length:var(--border-weight)] border-border shadow-[var(--ui-shadow)] z-[300] overflow-hidden"
+                      sideOffset={10}
+                      align="start"
+                      side="bottom"
+                    >
+                      <div className="w-[260px] flex flex-col">
+                        {loadingProfile ? (
+                          <div className="text-center py-6 font-[family-name:var(--font-primary)] text-xs text-secondary animate-pulse">Loading...</div>
+                        ) : profilePreview ? (
+                          <div className="flex flex-col gap-3 p-4">
+                            {/* Banner */}
+                            <div className="w-full h-12 bg-surface-container border-[length:var(--border-weight)] border-border overflow-hidden relative">
+                              {profilePreview.bannerUrl && !bannerError ? (
+                                <img src={profilePreview.bannerUrl} alt="Banner" onError={() => setBannerError(true)} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full opacity-40" style={{ backgroundImage: 'repeating-linear-gradient(45deg, var(--color-border) 0, var(--color-border) 2px, transparent 2px, transparent 14px)' }} />
+                              )}
+                            </div>
+
+                            {/* Avatar + Name */}
+                            <div className="flex items-center gap-3">
+                              {profilePreview.avatarUrl ? (
+                                <img src={profilePreview.avatarUrl} alt="Avatar" className="w-9 h-9 object-cover border-[length:var(--border-weight)] border-border" />
+                              ) : (
+                                <div className="w-9 h-9 bg-background border-[length:var(--border-weight)] border-border flex items-center justify-center">
+                                  <span className="font-[family-name:var(--font-primary)] text-xs text-secondary font-bold">{profilePreview.handle.substring(0, 2).toUpperCase()}</span>
+                                </div>
+                              )}
+                              <div className="flex flex-col min-w-0 flex-1">
+                                <span className="font-[family-name:var(--font-primary)] font-black text-sm text-foreground truncate uppercase tracking-tight">{profilePreview.displayName}</span>
+                                <span className="font-[family-name:var(--font-primary)] text-[10px] text-secondary">@{profilePreview.handle}</span>
+                                <div className="text-[9px] font-[family-name:var(--font-primary)] text-primary mt-0.5 tracking-widest truncate">
+                                  {calculateLevel(profilePreview.xp).displayString}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Status */}
+                            {profilePreview.currentGrind && (
+                              <div className="border-t border-border pt-3">
+                                <div className="font-[family-name:var(--font-primary)] text-[10px] uppercase tracking-widest text-primary font-bold mb-1">Status</div>
+                                <p className="font-[family-name:var(--font-primary)] text-[10px] text-foreground border border-border px-2 py-1 bg-background inline-block">
+                                  {profilePreview.currentGrind}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Bio */}
+                            {profilePreview.bio && (
+                              <div className="border-t border-border pt-3">
+                                <div className="font-[family-name:var(--font-primary)] text-[10px] uppercase tracking-widest text-primary font-bold mb-1">Bio</div>
+                                <p className="font-[family-name:var(--font-primary)] text-[10px] text-foreground leading-relaxed line-clamp-3">
+                                  {profilePreview.bio}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Actions */}
+                            <div className="flex gap-2 mt-1">
+                              <a
+                                href={`/u/${profilePreview.handle}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={() => setProfilePopoverOpen(false)}
+                                className="flex-1 flex items-center justify-center gap-2 p-2.5 border-[length:var(--border-weight)] border-border bg-surface text-foreground hover:bg-surface-high font-[family-name:var(--font-primary)] font-black text-[10px] tracking-widest uppercase hover:opacity-90 active:scale-[0.98] transition-all"
+                                title="View Full Profile"
+                              >
+                                <ExternalLink size={12} /> View Profile
+                              </a>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-6 font-[family-name:var(--font-primary)] text-xs text-secondary">Profile not found.</div>
+                        )}
+                      </div>
+                    </Popover.Content>
+                  </Popover.Portal>
+                </Popover.Root>
+              </div>
             ) : (
-              <span className="font-[family-name:var(--font-primary)] text-xs uppercase font-black tracking-widest" style={{ color: 'var(--color-foreground)' }}>
-                INBOX
-              </span>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setActiveTab('CHATS')}
+                  className={`font-[family-name:var(--font-primary)] text-xs uppercase font-black tracking-widest transition-colors ${activeTab === 'CHATS' ? 'text-foreground' : 'text-secondary'}`}
+                >
+                  CHATS {totalUnread > 0 && <span className="text-[9px] font-bold text-primary ml-1">({totalUnread})</span>}
+                </button>
+                <button
+                  onClick={() => setActiveTab('REQUESTS')}
+                  className={`font-[family-name:var(--font-primary)] text-xs uppercase font-black tracking-widest transition-colors ${activeTab === 'REQUESTS' ? 'text-foreground' : 'text-secondary'}`}
+                >
+                  REQUESTS {friendRequests.length > 0 && <span className="text-[9px] font-bold text-primary ml-1">({friendRequests.length})</span>}
+                </button>
+              </div>
             )}
-            {activeConv && (
-              <span className="font-[family-name:var(--font-primary)] text-[10px] uppercase font-bold tracking-widest" style={{ color: 'var(--color-primary)' }}>
-                @{activeConv.handle}
-              </span>
-            )}
+            
             <button
-              onClick={() => setOpen(false)}
+              onClick={() => closeInbox()}
               className="transition-colors"
               style={{ color: 'var(--color-secondary)' }}
               onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-foreground)')}
@@ -316,8 +446,8 @@ export function InboxWidget() {
             </div>
           )}
 
-          {/* Conversation List */}
-          {!activeConv && !openingDm && (
+          {/* CHATS TAB */}
+          {!activeConv && !openingDm && activeTab === 'CHATS' && (
             <div className="flex-1 overflow-y-auto">
               {conversations.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full gap-2" style={{ color: 'var(--color-secondary)' }}>
@@ -336,7 +466,6 @@ export function InboxWidget() {
                   onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface-high)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
-                  {/* Avatar */}
                   <div
                     className="w-8 h-8 shrink-0 overflow-hidden flex items-center justify-center"
                     style={{ background: 'var(--color-background)', border: 'var(--border-weight) solid var(--color-border)' }}
@@ -358,6 +487,54 @@ export function InboxWidget() {
                     <p className="font-[family-name:var(--font-primary)] text-[10px] truncate mt-0.5" style={{ color: 'var(--color-secondary)' }}>{conv.lastMessage}</p>
                   </div>
                 </button>
+              ))}
+            </div>
+          )}
+
+          {/* REQUESTS TAB */}
+          {!activeConv && !openingDm && activeTab === 'REQUESTS' && (
+            <div className="flex-1 overflow-y-auto">
+              {loadingRequests ? (
+                <div className="flex items-center justify-center h-full">
+                  <span className="font-[family-name:var(--font-primary)] text-[10px] uppercase tracking-widest animate-pulse" style={{ color: 'var(--color-secondary)' }}>
+                    Loading Requests...
+                  </span>
+                </div>
+              ) : friendRequests.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full gap-2" style={{ color: 'var(--color-secondary)' }}>
+                  <UserPlus size={24} className="opacity-30" />
+                  <span className="font-[family-name:var(--font-primary)] text-[10px] uppercase tracking-widest">No Pending Requests</span>
+                </div>
+              ) : friendRequests.map(req => (
+                <div
+                  key={req.id}
+                  className="w-full flex items-center justify-between gap-3 px-4 py-3 transition-colors text-left"
+                  style={{ borderBottom: '1px solid var(--color-border)' }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-8 h-8 shrink-0 overflow-hidden flex items-center justify-center"
+                      style={{ background: 'var(--color-background)', border: 'var(--border-weight) solid var(--color-border)' }}
+                    >
+                      {req.requester.avatarUrl
+                        ? <img src={req.requester.avatarUrl} alt="" className="w-full h-full object-cover" />
+                        : <span className="font-[family-name:var(--font-primary)] text-[10px] font-black" style={{ color: 'var(--color-foreground)' }}>{initials(req.requester.displayName)}</span>
+                      }
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-[family-name:var(--font-primary)] text-[10px] font-bold uppercase" style={{ color: 'var(--color-foreground)' }}>@{req.requester.handle}</span>
+                      <span className="font-[family-name:var(--font-primary)] text-[9px] uppercase tracking-widest mt-0.5" style={{ color: 'var(--color-secondary)' }}>wants to connect</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => handleAcceptRequest(req.id)} className="w-6 h-6 flex items-center justify-center bg-primary text-primary-foreground hover:opacity-80 transition-opacity">
+                      <Check size={12} />
+                    </button>
+                    <button onClick={() => handleRejectRequest(req.id)} className="w-6 h-6 flex items-center justify-center bg-surface-high text-secondary border border-border hover:bg-border transition-colors">
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </div>
               ))}
             </div>
           )}
@@ -437,10 +614,10 @@ export function InboxWidget() {
         </div>
       )}
 
-      {/* ── Floating Trigger Button — hidden inside rooms ── */}
+      {/* ── Floating Trigger Button ── */}
       {!isInRoom && (
         <button
-          onClick={() => setOpen(o => !o)}
+          onClick={toggleInbox}
           className="w-9 h-9 flex items-center justify-center transition-colors relative"
           style={{
             background: 'var(--color-surface)',
@@ -458,12 +635,12 @@ export function InboxWidget() {
           }}
         >
           <MessageSquare size={16} />
-          {totalUnread > 0 && !open && (
+          {unreadCount > 0 && !open && (
             <span
               className="absolute -top-1 -right-1 text-[8px] font-bold w-3.5 h-3.5 flex items-center justify-center font-[family-name:var(--font-primary)]"
               style={{ background: 'var(--color-primary)', color: 'var(--color-primary-foreground)' }}
             >
-              {totalUnread}
+              {unreadCount}
             </span>
           )}
         </button>

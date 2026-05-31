@@ -1,34 +1,40 @@
 "use client";
 
-import { SignUpPage, Testimonial } from "@/components/sign-up";
 import { SignIn } from "@clerk/nextjs";
-
-const registrationTestimonials: Testimonial[] = [
-    {
-        avatarSrc: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-        name: "Sarah Chen",
-        handle: "@sarah_dev",
-        text: "The split layout lets me organize cross-room work sprints efficiently. Exceptional minimalist architecture."
-    },
-    {
-        avatarSrc: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-        name: "Marcus Johnson",
-        handle: "@marcus_eng",
-        text: "Zero friction interface. The WebRTC streams sync instantly and the design parameters protect deep focus blocks."
-    }
-];
 
 export default function SignInRoute() {
     return (
-        <main className="bg-background text-foreground min-h-screen relative flex items-center justify-center">
-            <SignUpPage
-                title={<span className="font-light text-foreground tracking-tighter">Welcome Back</span>}
-                description="Sign in to your account to continue"
-                heroImageSrc="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80"
-                testimonials={registrationTestimonials}
-            >
-                <SignIn routing="hash" forceRedirectUrl="/dashboard" signUpUrl="/sign-up" />
-            </SignUpPage>
+        <main className="flex h-screen items-center justify-center bg-background text-foreground">
+            <div className="w-full max-w-md p-8">
+                <div className="flex flex-col items-center text-center mb-8">
+                    <h1 className="text-3xl font-light tracking-tight mb-2">Welcome Back</h1>
+                    <p className="text-muted-foreground text-sm">Sign in to your account to continue</p>
+                </div>
+                <SignIn 
+                    routing="hash" 
+                    forceRedirectUrl="/dashboard" 
+                    signUpUrl="/sign-up" 
+                    appearance={{
+                        elements: {
+                            card: {
+                                boxShadow: 'none',
+                                backgroundColor: 'transparent'
+                            },
+                            header: "hidden",
+                            formButtonPrimary: "bg-blue-300 hover:bg-blue-400 text-white rounded-full shadow-none py-3 font-medium transition-colors text-sm",
+                            formFieldInput: "border-b-2 border-border rounded-none focus:ring-0 focus:border-blue-400 bg-transparent p-2 text-foreground transition-colors shadow-none",
+                            formFieldLabel: "text-xs font-semibold text-muted-foreground uppercase tracking-wider",
+                            socialButtonsBlockButton: "border border-border hover:bg-surface rounded-full py-3 shadow-none transition-colors",
+                            socialButtonsBlockButtonText: "text-foreground font-medium",
+                            dividerLine: "bg-border",
+                            dividerText: "text-muted-foreground text-xs uppercase tracking-widest",
+                            footerActionText: "text-muted-foreground",
+                            footerActionLink: "text-blue-400 hover:text-blue-500 font-medium transition-colors",
+                            formFieldInputShowPasswordButton: "text-muted-foreground hover:text-foreground",
+                        }
+                    }}
+                />
+            </div>
         </main>
     );
 }

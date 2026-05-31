@@ -35,6 +35,7 @@ export default async function SavedRoomsPage() {
     vibe: r.vibe,
     visibility: r.visibility,
     creatorName: r.creator.handle || r.creator.displayName || 'Unknown',
+    creatorId: r.creatorId,
     participantCount: r.participants.length,
     isCurated: r.isDefaultRoom,
     isSaved: true // By definition of this query, they are saved

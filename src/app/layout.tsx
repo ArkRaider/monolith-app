@@ -34,44 +34,47 @@ export default function RootLayout({
       appearance={{
         variables: {
           colorPrimary: '#787958',
-          colorBackground: '#ffffff',      // Forces the whole box to be white
-          colorText: '#141311',            // Forces the main text to be dark
-          colorInputBackground: '#f3f4f6', // Light gray background for inputs
-          colorInputText: '#141311'        // Dark text inside inputs
+          colorBackground: '#ffffff',
+          colorText: '#141311',
+          colorInputBackground: '#f3f4f6',
+          colorInputText: '#141311'
         }
       }}
     >
       <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`} suppressHydrationWarning>
         <head>
-          {/* Theme initializer — runs before paint to avoid FOUC */}
+          {/* Theme initializer — keeps your selected UI Profile after refresh */}
           <Script
             id="theme-initializer"
             strategy="beforeInteractive"
             dangerouslySetInnerHTML={{
               __html: `
                 try {
-                  let layout = localStorage.getItem('layoutPreference');
-                  if (!layout) {
-                    layout = 'structural-brutalist';
+                  var layout = localStorage.getItem('layoutPreference');
+                  if (layout) {
+                    document.documentElement.dataset.layout = layout;
                   }
-                  document.documentElement.dataset.layout = layout;
                 } catch (e) {}
               `,
             }}
           />
         </head>
         <body className="min-h-full flex flex-col">
+          {/* We use ThemeProvider to manage your custom UI Profiles */}
           <ThemeProvider
             attribute="data-theme"
             defaultTheme="structural-brutalist"
             enableSystem={false}
+            themes={[
+              'structural-brutalist', 'lofi-aesthetic', 'dark-academia',
+              'light-academia', 'pastel-dream', 'cyberpunk-neon',
+              'deep-abyss', 'matcha-zen', 'monochrome',
+              'metallic-silver', 'sunset-vaporwave'
+            ]}
           >
             <NotificationProvider>
               <InboxProvider>
                 {children}
-                {/* InboxWidget lives at root — persists on all routes
-                    including /room/[slug]/studio. The floating button
-                    is suppressed in rooms; only the panel overlay shows. */}
                 <InboxWidget />
               </InboxProvider>
             </NotificationProvider>

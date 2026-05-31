@@ -33,6 +33,7 @@ export default async function MyRoomsPage() {
     vibe: r.vibe,
     visibility: r.visibility,
     creatorName: r.creator.handle || r.creator.displayName || 'Unknown',
+    creatorId: r.creatorId,
     participantCount: r.participants.length,
     isCurated: r.isDefaultRoom,
     isSaved: r.savedBy.length > 0

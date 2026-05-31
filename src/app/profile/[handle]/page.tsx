@@ -6,6 +6,8 @@ import { notFound } from 'next/navigation';
 import { ExternalLink, Terminal } from 'lucide-react';
 import Link from 'next/link';
 
+export const dynamic = 'force-dynamic';
+
 interface PageProps {
   params: Promise<{ handle: string }>;
 }

@@ -58,6 +58,8 @@ export function RemoteVideoPod({ stream, handle, userId, isAdmin, onKick }: { st
   const [menuStage, setMenuStage] = useState<'menu' | 'profile'>('menu');
   const [loading, setLoading] = useState(false);
   const [isVideoActive, setIsVideoActive] = useState(true);
+  const [friendshipStatus, setFriendshipStatus] = useState('NONE');
+  const [bannerError, setBannerError] = useState(false);
 
   // Detect whether the stream has an active video track
   useEffect(() => {
@@ -100,9 +102,15 @@ export function RemoteVideoPod({ stream, handle, userId, isAdmin, onKick }: { st
     setMenuStage('profile');
     if (!profile) {
       setLoading(true);
+      setBannerError(false);
       try {
         const data = await getUserProfile(handle);
-        if (data) setProfile(data as UserProfileData);
+        if (data) {
+          setProfile(data as UserProfileData);
+          const { getFriendshipStatus } = await import('@/app/actions/friend-actions');
+          const status = await getFriendshipStatus(data.id);
+          setFriendshipStatus(status);
+        }
       } catch (error) {
         console.error('Failed to load profile', error);
       } finally {
@@ -110,9 +118,17 @@ export function RemoteVideoPod({ stream, handle, userId, isAdmin, onKick }: { st
       }
     }
   };
+
+  const handleAddFriend = async () => {
+    if (!profile || friendshipStatus !== 'NONE') return;
+    setFriendshipStatus('PENDING_SENT');
+    const { sendFriendRequest } = await import('@/app/actions/friend-actions');
+    const res = await sendFriendRequest(profile.id);
+    if (res.error) setFriendshipStatus('NONE');
+  };
   
   return (
-    <div className="w-full h-full relative overflow-hidden bg-black border-[length:var(--border-weight)] border-border group">
+    <div className="w-full h-full relative overflow-hidden bg-black border-[length:var(--border-weight)] border-border rounded-[2rem] group">
       <video
         ref={videoRef}
         autoPlay
@@ -220,8 +236,8 @@ export function RemoteVideoPod({ stream, handle, userId, isAdmin, onKick }: { st
 
                     {/* Banner */}
                     <div className="w-full h-12 bg-surface-container border-[length:var(--border-weight)] border-border overflow-hidden relative">
-                      {profile.bannerUrl ? (
-                        <img src={profile.bannerUrl} alt="Banner" className="w-full h-full object-cover" />
+                      {profile.bannerUrl && !bannerError ? (
+                        <img src={profile.bannerUrl} alt="Banner" onError={() => setBannerError(true)} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full opacity-40" style={{ backgroundImage: 'repeating-linear-gradient(45deg, var(--color-border) 0, var(--color-border) 2px, transparent 2px, transparent 14px)' }} />
                       )}
@@ -279,14 +295,52 @@ export function RemoteVideoPod({ stream, handle, userId, isAdmin, onKick }: { st
                       </div>
                     )}
 
-                    {/* Full Profile Link */}
-                    <Link
-                      href={`/profile/${profile.handle}`}
-                      onClick={() => setIsOpen(false)}
-                      className="w-full flex items-center justify-center gap-2 p-2.5 mt-1 border-[length:var(--border-weight)] border-border bg-primary text-primary-foreground font-[family-name:var(--font-primary)] font-black text-[10px] tracking-widest uppercase hover:opacity-90 active:scale-[0.98] transition-all"
-                    >
-                      <ExternalLink size={12} /> Full Profile
-                    </Link>
+                    {/* Actions */}
+                    <div className="flex gap-2 mt-1">
+                      {friendshipStatus === 'NONE' && (
+                        <button
+                          onClick={handleAddFriend}
+                          className="flex-1 flex items-center justify-center gap-2 p-2.5 border-[length:var(--border-weight)] border-border bg-primary text-primary-foreground font-[family-name:var(--font-primary)] font-black text-[10px] tracking-widest uppercase hover:opacity-90 active:scale-[0.98] transition-all"
+                        >
+                          Add Friend
+                        </button>
+                      )}
+                      {friendshipStatus === 'PENDING_SENT' && (
+                        <button
+                          disabled
+                          className="flex-1 flex items-center justify-center gap-2 p-2.5 border-[length:var(--border-weight)] border-border bg-transparent text-secondary font-[family-name:var(--font-primary)] font-black text-[10px] tracking-widest uppercase cursor-not-allowed"
+                        >
+                          Sent
+                        </button>
+                      )}
+                      {friendshipStatus === 'PENDING_RECEIVED' && (
+                        <button
+                          disabled
+                          className="flex-1 flex items-center justify-center gap-2 p-2.5 border-[length:var(--border-weight)] border-border bg-transparent text-secondary font-[family-name:var(--font-primary)] font-black text-[10px] tracking-widest uppercase cursor-not-allowed"
+                        >
+                          Check Inbox
+                        </button>
+                      )}
+                      {friendshipStatus === 'ACCEPTED' && (
+                        <button
+                          disabled
+                          className="flex-1 flex items-center justify-center gap-2 p-2.5 border-[length:var(--border-weight)] border-border bg-transparent text-primary font-[family-name:var(--font-primary)] font-black text-[10px] tracking-widest uppercase cursor-not-allowed"
+                        >
+                          Friends ✓
+                        </button>
+                      )}
+
+                      <Link
+                        href={`/u/${profile.handle}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setIsOpen(false)}
+                        className="flex-1 flex items-center justify-center gap-2 p-2.5 border-[length:var(--border-weight)] border-border bg-surface text-foreground hover:bg-surface-high font-[family-name:var(--font-primary)] font-black text-[10px] tracking-widest uppercase hover:opacity-90 active:scale-[0.98] transition-all"
+                        title="View Full Profile"
+                      >
+                        <ExternalLink size={12} />
+                      </Link>
+                    </div>
                   </div>
                 ) : (
                   <div className="text-center py-6 font-[family-name:var(--font-primary)] text-xs text-secondary">Profile not found.</div>

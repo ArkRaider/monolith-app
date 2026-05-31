@@ -13,11 +13,12 @@ import { TaskDeck } from '@/components/TaskDeck';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTheme } from 'next-themes';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Palette, PanelRightClose, PanelRightOpen, LogOut, MessageSquare } from 'lucide-react';
+import { Palette, PanelRightClose, PanelRightOpen, LogOut, MessageSquare, ChevronUp, ChevronDown } from 'lucide-react';
 import { toggleSaveRoom } from '@/app/actions/room-actions';
 import { getRoomLeaderboard } from '@/app/actions/gamification-actions';
 import { useInbox } from '@/context/InboxContext';
 import { isRoomAdmin } from '@/lib/roles';
+import { StudioCanvas } from '@/components/room/StudioCanvas';
 
 interface StudioClientProps {
   slug: string;
@@ -25,9 +26,12 @@ interface StudioClientProps {
   roomId?: string;
   initialIsSaved?: boolean;
   creatorId?: string;
+  capacity?: number;
+  currentUserHandle?: string;
+  currentDisplayName?: string;
 }
 
-export default function StudioClient({ slug, initialPwd, roomId, initialIsSaved, creatorId }: StudioClientProps) {
+export default function StudioClient({ slug, initialPwd, roomId, initialIsSaved, creatorId, capacity = 0, currentUserHandle, currentDisplayName }: StudioClientProps) {
   const { user, isLoaded } = useUser();
   const searchParams = useSearchParams();
   const pwd = initialPwd || searchParams.get('pwd') || undefined;
@@ -37,6 +41,10 @@ export default function StudioClient({ slug, initialPwd, roomId, initialIsSaved,
   const [maxPods, setMaxPods] = useState(6);
   const [localState, setLocalState] = useState<'grid' | 'minimized' | 'hidden'>('grid');
   const constraintsRef = useRef<HTMLDivElement>(null);
+  const [cameraError, setCameraError] = useState(false);
+  const [videoMinimized, setVideoMinimized] = useState(false);
+  const [zenMode, setZenMode] = useState(false);
+  const [topHovered, setTopHovered] = useState(false);
 
   const [isSaved, setIsSaved] = useState(initialIsSaved || false);
   const [isSaving, setIsSaving] = useState(false);
@@ -60,12 +68,13 @@ export default function StudioClient({ slug, initialPwd, roomId, initialIsSaved,
   ];
 
   // ── Static identity — no Math.random(), no Date.now() ────────────────────────
-  const displayName  = user?.username || user?.firstName || 'Guest';
+  const displayName  = currentDisplayName || user?.username || user?.firstName || 'Guest';
   const activeUserId = user?.id       || 'guest_user';
   const avatarUrl    = user?.imageUrl  || null;
+  const realHandle   = currentUserHandle || displayName;
 
   // Stable object for useSignaling — shape matches what the hook expects.
-  const currentUser = { handle: displayName, id: activeUserId };
+  const currentUser = { handle: realHandle, id: activeUserId, displayName };
   const isAdmin = isRoomAdmin(activeUserId, creatorId);
 
   const { isConnected, messages, sendMessage, socket } = useSignaling(slug, currentUser, pwd);
@@ -84,6 +93,12 @@ export default function StudioClient({ slug, initialPwd, roomId, initialIsSaved,
     title: string;
   }
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+
+  useEffect(() => {
+    if (slug) {
+      localStorage.setItem('lastRoomId', slug);
+    }
+  }, [slug]);
 
   useEffect(() => {
     if (!socket) return;
@@ -108,9 +123,19 @@ export default function StudioClient({ slug, initialPwd, roomId, initialIsSaved,
 
   useEffect(() => {
     if (!initCam && !initMic) return;
-    navigator.mediaDevices.getUserMedia({ video: initCam, audio: initMic })
-      .then(stream => setLocalStream(stream))
-      .catch(err => console.error('Failed to access media devices', err));
+    
+    const initMedia = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: initCam, audio: initMic });
+        setLocalStream(stream);
+        setCameraError(false);
+      } catch (err) {
+        console.error('Failed to access media devices', err);
+        setCameraError(true);
+      }
+    };
+    
+    initMedia();
   }, [initCam, initMic]);
 
   const { peers } = useWebRTC(localStream);
@@ -132,6 +157,18 @@ export default function StudioClient({ slug, initialPwd, roomId, initialIsSaved,
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleLeaveRoom = async () => {
+    if (capacity === 1 && roomId) {
+      // Auto-delete temporary solo rooms when leaving
+      try {
+        await fetch(`/api/rooms/${roomId}`, { method: 'DELETE' });
+      } catch (err) {
+        console.error('Failed to delete temporary room', err);
+      }
+    }
+    router.push('/dashboard');
   };
 
   const toggleAudio = () => {
@@ -258,72 +295,137 @@ export default function StudioClient({ slug, initialPwd, roomId, initialIsSaved,
         <main className="flex-1 flex flex-col relative" ref={constraintsRef}>
         
         {/* Header */}
-        <header className="h-14 border-b-[length:var(--border-weight)] border-border flex items-center justify-between px-6 bg-surface z-10">
-          <div className="flex items-center gap-4">
-            <span className="font-[family-name:var(--font-primary)] text-xs text-secondary px-2 border-l-[length:var(--border-weight)] border-border">
-              {isConnected ? 'LIVE' : 'CONNECTING...'}
+        <div className="relative z-50">
+          <AnimatePresence>
+            {!zenMode && (
+              <motion.header
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 56, opacity: 1 }}
+                exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                className="border-b-[length:var(--border-weight)] border-border flex items-center justify-between px-6 bg-surface"
+              >
+                <div className="flex items-center gap-4">
+                  <span className="font-[family-name:var(--font-primary)] text-xs text-secondary px-2 border-l-[length:var(--border-weight)] border-border">
+                    {isConnected ? 'LIVE' : 'CONNECTING...'}
+                  </span>
+                </div>
+
+                {/* Minimal Theme Switcher */}
+                <div className="flex items-center">
+                  <DropdownMenu.Root>
+                    <DropdownMenu.Trigger asChild>
+                      <button className="p-2 border border-border text-foreground bg-background hover:bg-border active:scale-95 transition-all outline-none">
+                        <Palette size={16} />
+                      </button>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Portal>
+                      <DropdownMenu.Content 
+                        className="min-w-[200px] max-h-[400px] overflow-y-auto bg-surface-high border border-border p-2 font-[family-name:var(--font-primary)] text-sm z-50 shadow-[var(--ui-shadow)]" 
+                        align="end" 
+                        sideOffset={8}
+                      >
+                        <div className="px-2 py-1 text-[10px] uppercase tracking-widest text-secondary font-bold">
+                          Aesthetics
+                        </div>
+                        {themesList.map((t) => (
+                          <DropdownMenu.Item 
+                            key={t.id}
+                            className={`px-3 py-2 cursor-pointer hover:bg-border outline-none text-foreground flex justify-between ${theme === t.id ? 'bg-border/50 text-primary' : ''}`}
+                            onClick={() => setTheme(t.id)}
+                          >
+                            <span>{t.name}</span>
+                            <span>{t.icon}</span>
+                          </DropdownMenu.Item>
+                        ))}
+                      </DropdownMenu.Content>
+                    </DropdownMenu.Portal>
+                  </DropdownMenu.Root>
+                </div>
+              </motion.header>
+            )}
+          </AnimatePresence>
+
+          {capacity === 1 && (
+            <div 
+              className="absolute top-0 left-0 w-full h-12 z-50 flex justify-center items-start pt-2 pointer-events-none"
+            >
+              <div 
+                className="pointer-events-auto w-full max-w-lg h-full flex justify-center"
+                onMouseEnter={() => setTopHovered(true)}
+                onMouseLeave={() => setTopHovered(false)}
+              >
+                <AnimatePresence>
+                  {topHovered && (
+                    <motion.button
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      onClick={() => setZenMode(!zenMode)}
+                      className="bg-surface/90 backdrop-blur-md border border-border p-2 rounded-full shadow-2xl text-foreground hover:bg-surface-high transition-colors mt-1 pointer-events-auto"
+                    >
+                      {zenMode ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {cameraError && (
+          <div className="m-4 p-4 bg-red-500/10 border border-red-500/50 rounded-[var(--radius)] flex items-center justify-center text-center z-10 shrink-0">
+            <span className="text-red-500 font-bold text-sm">
+              Camera Permission Denied. Please allow camera and microphone access in your browser settings to join the room fully.
             </span>
           </div>
+        )}
 
-          {/* Minimal Theme Switcher */}
-          <div className="flex items-center">
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger asChild>
-                <button className="p-2 border border-border text-foreground bg-background hover:bg-border active:scale-95 transition-all outline-none">
-                  <Palette size={16} />
-                </button>
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Portal>
-                <DropdownMenu.Content 
-                  className="min-w-[200px] max-h-[400px] overflow-y-auto bg-surface-high border border-border p-2 font-[family-name:var(--font-primary)] text-sm z-50 shadow-[var(--ui-shadow)]" 
-                  align="end" 
-                  sideOffset={8}
-                >
-                  <div className="px-2 py-1 text-[10px] uppercase tracking-widest text-secondary font-bold">
-                    Aesthetics
-                  </div>
-                  {themesList.map((t) => (
-                    <DropdownMenu.Item 
-                      key={t.id}
-                      className={`px-3 py-2 cursor-pointer hover:bg-border outline-none text-foreground flex justify-between ${theme === t.id ? 'bg-border/50 text-primary' : ''}`}
-                      onClick={() => setTheme(t.id)}
-                    >
-                      <span>{t.name}</span>
-                      <span>{t.icon}</span>
-                    </DropdownMenu.Item>
-                  ))}
-                </DropdownMenu.Content>
-              </DropdownMenu.Portal>
-            </DropdownMenu.Root>
-          </div>
-        </header>
-
-        {/* Video Grid */}
-        <div className="flex-1 p-4 pb-6 grid gap-4 overflow-hidden" style={{ 
-          gridTemplateColumns: `repeat(auto-fit, minmax(280px, 1fr))`,
-          gridAutoRows: '1fr'
-        }}>
-          {localState === 'grid' && (
-            <LocalVideoPod 
-              stream={localStream} 
-              state={localState} 
-              onStateChange={setLocalState}
+        {/* Video Grid or Solo Studio Grid */}
+        {capacity === 1 ? (
+          <div className="flex-1 relative overflow-hidden bg-transparent">
+            <StudioCanvas 
               isVideoOff={isVideoOff}
-              displayName={displayName}
-              avatarUrl={avatarUrl}
+              videoMinimized={videoMinimized}
+              onVideoMinimizeToggle={setVideoMinimized}
+              videoPod={
+                <LocalVideoPod 
+                  stream={localStream} 
+                  state={localState} 
+                  onStateChange={setLocalState}
+                  isVideoOff={isVideoOff}
+                  displayName={displayName}
+                  avatarUrl={avatarUrl}
+                />
+              } 
             />
-          )}
-          {displayPeers.map(peer => (
-            <RemoteVideoPod 
-              key={peer.peerID}
-              stream={peer.stream}
-              handle={peer.user?.handle || 'Unknown'}
-              userId={peer.user?.id}
-              isAdmin={isAdmin}
-              onKick={() => handleKick(peer.peerID, peer.user?.id)}
-            />
-          ))}
-        </div>
+          </div>
+        ) : (
+          <div className="flex-1 p-4 pb-6 grid gap-4 overflow-hidden" style={{ 
+            gridTemplateColumns: `repeat(auto-fit, minmax(280px, 1fr))`,
+            gridAutoRows: '1fr'
+          }}>
+            {localState === 'grid' && (
+              <LocalVideoPod 
+                stream={localStream} 
+                state={localState} 
+                onStateChange={setLocalState}
+                isVideoOff={isVideoOff}
+                displayName={displayName}
+                avatarUrl={avatarUrl}
+              />
+            )}
+            {displayPeers.map(peer => (
+              <RemoteVideoPod 
+                key={peer.peerID}
+                stream={peer.stream}
+                handle={peer.user?.handle || 'Unknown'}
+                userId={peer.user?.id}
+                isAdmin={isAdmin}
+                onKick={() => handleKick(peer.peerID, peer.user?.id)}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Local Minimized Pip */}
         <AnimatePresence>
@@ -351,9 +453,9 @@ export default function StudioClient({ slug, initialPwd, roomId, initialIsSaved,
         </main>
 
         {/* Right Panel */}
-        {panelOpen && (
-          <aside className="w-80 border-l-[length:var(--border-weight)] border-border bg-surface flex flex-col z-20 shrink-0">
-          <div className="flex border-b border-border flex-wrap">
+        {panelOpen && capacity !== 1 && (
+            <aside className="w-80 border-l-[length:var(--border-weight)] border-border bg-surface flex flex-col z-20 shrink-0">
+            <div className="flex border-b border-border flex-wrap">
             <button 
               onClick={() => setActiveTab('chat')}
               className={`flex-1 min-w-[30%] py-3 text-[10px] font-[family-name:var(--font-primary)] font-bold uppercase transition-colors ${activeTab === 'chat' ? 'bg-primary text-primary-foreground' : 'text-secondary hover:text-foreground'}`}
@@ -462,83 +564,101 @@ export default function StudioClient({ slug, initialPwd, roomId, initialIsSaved,
             </div>
           )}
         </aside>
-      )}
+        )}
       </div>
 
       {/* Global Bottom Control Toolbar */}
-      <footer className="shrink-0 h-16 border-t-[length:var(--border-weight)] border-border bg-surface flex items-center justify-between px-6 z-30 font-[family-name:var(--font-primary)]">
-        {/* Left: Leave / Nav */}
-        <div className="flex items-center w-1/3">
-          <Link href="/dashboard" className="flex items-center gap-2 font-bold text-red-500 hover:text-red-400 transition-colors uppercase text-xs tracking-widest">
-            <LogOut size={16} /> Leave Studio
-          </Link>
-        </div>
-
-        {/* Center: Core Controls */}
-        <div className="flex items-center justify-center gap-4 w-1/3">
-          {roomId && (
-            <button 
-              onClick={handleToggleSave}
-              disabled={isSaving}
-              className={`border-[length:var(--border-weight)] border-border font-mono tracking-wider px-4 py-2 text-xs rounded-[var(--radius)] uppercase transition-all font-bold ${isSaved ? 'bg-foreground text-background border-foreground' : 'bg-surface hover:bg-surface-high text-foreground'}`}
-            >
-              {isSaved ? 'SAVED' : 'SAVE ROOM'}
-            </button>
-          )}
-
-          <button 
-            onClick={toggleAudio}
-            className={`border-[length:var(--border-weight)] border-border font-mono tracking-wider px-4 py-2 text-xs rounded-[var(--radius)] uppercase transition-all font-bold ${!isAudioMuted ? 'bg-primary text-primary-foreground' : 'bg-surface hover:bg-surface-high text-foreground'}`}
+      <AnimatePresence>
+        {!zenMode && (
+          <motion.footer
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 64, opacity: 1 }}
+            exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+            className="shrink-0 border-t-[length:var(--border-weight)] border-border bg-surface flex items-center justify-between px-6 z-30 font-[family-name:var(--font-primary)]"
           >
-            {!isAudioMuted ? 'MIC ON' : 'MIC OFF'}
-          </button>
-          
-          <button 
-            onClick={toggleVideo}
-            className={`border-[length:var(--border-weight)] border-border font-mono tracking-wider px-4 py-2 text-xs rounded-[var(--radius)] uppercase transition-all font-bold ${!isVideoOff ? 'bg-primary text-primary-foreground' : 'bg-surface hover:bg-surface-high text-foreground'}`}
-          >
-            {!isVideoOff ? 'CAM ON' : 'CAM OFF'}
-          </button>
+            {/* Left: Leave / Nav */}
+            <div className="flex items-center w-1/3">
+              <button onClick={handleLeaveRoom} className="flex items-center gap-2 font-bold text-red-500 hover:text-red-400 transition-colors uppercase text-xs tracking-widest outline-none">
+                <LogOut size={16} /> Leave Studio
+              </button>
+            </div>
 
-          <button 
-            onClick={toggleScreenShare}
-            className={`border-[length:var(--border-weight)] border-border font-mono tracking-wider px-4 py-2 text-xs rounded-[var(--radius)] uppercase transition-all font-bold ${isScreenSharing ? 'bg-primary text-primary-foreground' : 'bg-surface hover:bg-surface-high text-foreground'}`}
-          >
-            {isScreenSharing ? 'SHARING' : 'SHARE SCREEN'}
-          </button>
-        </div>
+            {/* Center: Core Controls */}
+            <div className="flex items-center justify-center gap-4 w-1/3">
+              {roomId && (
+                <button 
+                  onClick={handleToggleSave}
+                  disabled={isSaving}
+                  className={`border-[length:var(--border-weight)] border-border font-mono tracking-wider px-4 py-2 text-xs rounded-[var(--radius)] uppercase transition-all font-bold ${isSaved ? 'bg-foreground text-background border-foreground' : 'bg-surface hover:bg-surface-high text-foreground'}`}
+                >
+                  {isSaved ? 'SAVED' : 'SAVE ROOM'}
+                </button>
+              )}
 
-        {/* Right: Inbox DM + Panel Toggle */}
-        <div className="flex items-center justify-end gap-2 w-1/3">
-          {/* Inbox trigger — opens the InboxWidget overlay mounted at root */}
-          <button
-            onClick={toggleInbox}
-            className="p-3 rounded-[var(--radius)] border-[length:var(--border-weight)] border-border bg-surface hover:bg-surface-high text-foreground active:scale-95 transition-all flex items-center gap-2 text-xs font-bold uppercase relative"
-          >
-            <MessageSquare size={16} />
-            DMs
-            {totalUnread > 0 && (
-              <span
-                className="absolute -top-1 -right-1 text-[8px] font-bold w-3.5 h-3.5 flex items-center justify-center"
-                style={{ background: 'var(--color-primary)', color: 'var(--color-primary-foreground)' }}
+              <button 
+                onClick={toggleAudio}
+                className={`border-[length:var(--border-weight)] border-border font-mono tracking-wider px-4 py-2 text-xs rounded-[var(--radius)] uppercase transition-all font-bold ${!isAudioMuted ? 'bg-primary text-primary-foreground' : 'bg-surface hover:bg-surface-high text-foreground'}`}
               >
-                {totalUnread}
-              </span>
-            )}
-          </button>
+                {!isAudioMuted ? 'MIC ON' : 'MIC OFF'}
+              </button>
+              
+              <button 
+                onClick={toggleVideo}
+                className={`border-[length:var(--border-weight)] border-border font-mono tracking-wider px-4 py-2 text-xs rounded-[var(--radius)] uppercase transition-all font-bold ${!isVideoOff ? 'bg-primary text-primary-foreground' : 'bg-surface hover:bg-surface-high text-foreground'}`}
+              >
+                {!isVideoOff ? 'CAM ON' : 'CAM OFF'}
+              </button>
 
-          <button 
-            onClick={() => setPanelOpen(!panelOpen)}
-            className="p-3 rounded-[var(--radius)] border-[length:var(--border-weight)] border-border bg-surface hover:bg-surface-high text-foreground active:scale-95 transition-all flex items-center gap-2 text-xs font-bold uppercase"
-          >
-            {panelOpen ? (
-              <><PanelRightClose size={16} /> Hide Chat</>
-            ) : (
-              <><PanelRightOpen size={16} /> Show Chat</>
-            )}
-          </button>
-        </div>
-      </footer>
+              <button 
+                onClick={toggleScreenShare}
+                className={`border-[length:var(--border-weight)] border-border font-mono tracking-wider px-4 py-2 text-xs rounded-[var(--radius)] uppercase transition-all font-bold ${isScreenSharing ? 'bg-primary text-primary-foreground' : 'bg-surface hover:bg-surface-high text-foreground'}`}
+              >
+                {isScreenSharing ? 'SHARING' : 'SHARE SCREEN'}
+              </button>
+              
+              {capacity === 1 && !isVideoOff && (
+                <button 
+                  onClick={() => setVideoMinimized(!videoMinimized)}
+                  className={`border-[length:var(--border-weight)] border-border font-mono tracking-wider px-4 py-2 text-xs rounded-[var(--radius)] uppercase transition-all font-bold ${videoMinimized ? 'bg-primary text-primary-foreground' : 'bg-surface hover:bg-surface-high text-foreground'}`}
+                >
+                  {videoMinimized ? 'EXPAND POD' : 'MINIMIZE POD'}
+                </button>
+              )}
+            </div>
+
+            {/* Right: Inbox DM + Panel Toggle */}
+            <div className="flex items-center justify-end gap-2 w-1/3">
+              {/* Inbox trigger — opens the InboxWidget overlay mounted at root */}
+              <button
+                onClick={toggleInbox}
+                className="p-3 rounded-[var(--radius)] border-[length:var(--border-weight)] border-border bg-surface hover:bg-surface-high text-foreground active:scale-95 transition-all flex items-center gap-2 text-xs font-bold uppercase relative"
+              >
+                <MessageSquare size={16} />
+                DMs
+                {totalUnread > 0 && (
+                  <span
+                    className="absolute -top-1 -right-1 text-[8px] font-bold w-3.5 h-3.5 flex items-center justify-center"
+                    style={{ background: 'var(--color-primary)', color: 'var(--color-primary-foreground)' }}
+                  >
+                    {totalUnread}
+                  </span>
+                )}
+              </button>
+
+              <button 
+                onClick={() => setPanelOpen(!panelOpen)}
+                className={`p-3 rounded-[var(--radius)] border-[length:var(--border-weight)] border-border bg-surface hover:bg-surface-high text-foreground active:scale-95 transition-all flex items-center gap-2 text-xs font-bold uppercase ${capacity === 1 ? 'hidden' : ''}`}
+              >
+                {panelOpen ? (
+                  <><PanelRightClose size={16} /> Hide Chat</>
+                ) : (
+                  <><PanelRightOpen size={16} /> Show Chat</>
+                )}
+              </button>
+            </div>
+          </motion.footer>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

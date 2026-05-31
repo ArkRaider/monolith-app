@@ -37,6 +37,7 @@ export async function createRoom(data: {
       allowCam: data.allowCam,
       globalChatEnabled: data.globalChatEnabled,
       creatorId: data.creatorId,
+      temporary: data.capacity === 1,
     },
   });
 }

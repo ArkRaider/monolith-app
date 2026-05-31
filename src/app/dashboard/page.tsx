@@ -14,6 +14,22 @@ export default async function DashboardPage() {
 
   const [dbRooms] = await Promise.all([
     prisma.room.findMany({
+      where: {
+        AND: [
+          {
+            OR: [
+              { temporary: false },
+              { AND: [{ temporary: true }, { creatorId: user.id }] }
+            ]
+          },
+          {
+            OR: [
+              { visibility: 'PUBLIC' },
+              { creatorId: user.id }
+            ]
+          }
+        ]
+      },
       include: {
         creator: true,
         participants: true,
@@ -32,6 +48,7 @@ export default async function DashboardPage() {
     vibe: r.vibe,
     visibility: r.visibility,
     creatorName: r.creator.handle || r.creator.displayName || 'Unknown',
+    creatorId: r.creatorId,
     participantCount: r.participants.length,
     isCurated: r.isDefaultRoom,
     isSaved: r.savedBy.length > 0

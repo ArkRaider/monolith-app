@@ -5,7 +5,8 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { MoreVertical, MessageSquare, User } from 'lucide-react';
 import * as Popover from '@radix-ui/react-popover';
-import { getRecentUsers, pingActiveStatus } from '@/app/actions/user-actions';
+import { pingActiveStatus } from '@/app/actions/user-actions';
+import { getOnlineFriends } from '@/app/actions/friend-actions';
 
 interface RecentUser {
   id: string;
@@ -22,7 +23,7 @@ export function LiveActivityPanel() {
 
   const fetchUsers = useCallback(async () => {
     try {
-      const recent = await getRecentUsers();
+      const recent = await getOnlineFriends();
       setUsers(recent);
     } catch (error) {
       console.error('Failed to fetch recent users:', error);
@@ -62,8 +63,8 @@ export function LiveActivityPanel() {
   }, [fetchUsers, pingStatus]);
 
   return (
-    <aside className="hidden xl:flex flex-col w-[280px] border-l border-border p-6 flex-shrink-0 bg-surface/30 relative z-0">
-      <h3 className="font-[family-name:var(--font-primary)] text-xs uppercase tracking-widest text-secondary mb-6">Who&apos;s studying</h3>
+    <aside className="hidden xl:flex flex-col w-[220px] border-l border-border p-6 flex-shrink-0 bg-surface/30 relative z-0">
+      <h3 className="font-[family-name:var(--font-primary)] text-xs uppercase tracking-widest text-secondary mb-6">Online Friends</h3>
 
       <div className="flex flex-col gap-1">
         {users.length > 0 ? users.map((user) => (

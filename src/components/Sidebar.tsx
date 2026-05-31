@@ -150,7 +150,13 @@ export function Sidebar() {
       <aside className="hidden md:flex flex-col w-[260px] border-r border-border p-6 flex-shrink-0 bg-background z-10 relative h-screen overflow-y-auto">
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
-            <button className="flex items-center gap-3 mb-8 w-full text-left hover:opacity-80 transition-opacity outline-none">
+            <button
+              className="flex items-center gap-3 mb-8 w-full text-left hover:opacity-80 transition-opacity outline-none"
+              onClick={(e) => {
+                const computed = window.getComputedStyle(e.currentTarget);
+                console.log("[Dropdown Trigger Debug] Trigger opacity:", computed.opacity);
+              }}
+            >
               {isLoaded && user?.imageUrl ? (
                 <img src={user.imageUrl} alt="Profile" className="w-8 h-8 rounded-[var(--radius)] border border-border shrink-0 object-cover" />
               ) : (
@@ -163,7 +169,11 @@ export function Sidebar() {
             </button>
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
-            <DropdownMenu.Content className="min-w-[220px] max-h-[400px] overflow-y-auto bg-surface-high border-[length:var(--border-weight)] border-border p-2 font-[family-name:var(--font-primary)] text-sm z-50 shadow-[var(--ui-shadow)] rounded-[var(--radius)]" sideOffset={5}>
+            <DropdownMenu.Content
+              className="min-w-[220px] max-h-[400px] overflow-y-auto border border-border p-2 font-[family-name:var(--font-primary)] text-sm shadow-2xl rounded-lg overflow-hidden"
+              style={{ backgroundColor: 'var(--surface-high)', zIndex: 99999 }}
+              sideOffset={5}
+            >
               <div className="px-2 py-1 text-[10px] uppercase tracking-widest text-secondary font-bold">
                 Core Aesthetics
               </div>
@@ -171,7 +181,13 @@ export function Sidebar() {
                 <DropdownMenu.Item
                   key={t.id}
                   className={`px-3 py-2 cursor-pointer hover:bg-border outline-none text-foreground flex justify-between ${theme === t.id ? 'bg-border/50' : ''}`}
-                  onClick={() => setTheme(t.id)}
+                  onClick={() => {
+                    console.log(`[Theme Debug] Switching Theme (colors) to:`, t.id);
+                    setTheme(t.id);
+                    setTimeout(() => {
+                      console.log(`[Theme Debug] HTML data-theme attribute is now:`, document.documentElement.getAttribute('data-theme'));
+                    }, 50);
+                  }}
                 >
                   <span>{t.name}</span>
                   <span>{t.icon}</span>
@@ -187,7 +203,13 @@ export function Sidebar() {
                 <DropdownMenu.Item
                   key={t.id}
                   className={`px-3 py-2 cursor-pointer hover:bg-border outline-none text-foreground flex justify-between ${theme === t.id ? 'bg-border/50' : ''}`}
-                  onClick={() => setTheme(t.id)}
+                  onClick={() => {
+                    console.log(`[Theme Debug] Switching Theme (colors) to:`, t.id);
+                    setTheme(t.id);
+                    setTimeout(() => {
+                      console.log(`[Theme Debug] HTML data-theme attribute is now:`, document.documentElement.getAttribute('data-theme'));
+                    }, 50);
+                  }}
                 >
                   <span>{t.name}</span>
                   <span>{t.icon}</span>
@@ -208,7 +230,13 @@ export function Sidebar() {
                 <DropdownMenu.Item
                   key={l.id}
                   className={`px-3 py-2 cursor-pointer hover:bg-border outline-none text-foreground flex justify-between ${layout === l.id ? 'bg-border/50' : ''}`}
-                  onClick={() => setLayout(l.id as LayoutPreference)}
+                  onClick={() => {
+                    console.log(`[Layout Debug] Switching Layout (shapes) to:`, l.id);
+                    setLayout(l.id as LayoutPreference);
+                    setTimeout(() => {
+                      console.log(`[Layout Debug] HTML data-layout attribute is now:`, document.documentElement.getAttribute('data-layout'));
+                    }, 50);
+                  }}
                 >
                   <span>{l.name}</span>
                   {layout === l.id && <span>✓</span>}
@@ -228,8 +256,8 @@ export function Sidebar() {
         </DropdownMenu.Root>
 
         <div className="mb-8">
-          <div className="font-[family-name:var(--font-primary)] text-xs tracking-widest text-primary flex items-center gap-2 font-bold">
-            🔥 {streak} DAY STREAK
+          <div className="font-[family-name:var(--font-primary)] text-sm tracking-widest text-primary flex items-center gap-2 font-black">
+            <span className="glow-fire text-lg">🔥</span> {streak} DAY STREAK
           </div>
         </div>
 
@@ -293,14 +321,14 @@ export function Sidebar() {
             /* ── Data-Stream Heatmap: dense 10×10 cells, full month ── */
             <div className="flex flex-wrap gap-[2px]">
               {monthGrid.map((cell) => {
-                // Opacity tiers: future → 0.08 ghost, past/no-data → 0.15, active → ratio-scaled, today → 1.0
+                // Opacity tiers: future → 0.08 ghost, past/no-data → 0.08, active → high contrast, today → 1.0
                 const cellOpacity = cell.isFuture
                   ? 0.08
                   : cell.isToday
                     ? 1
                     : cell.ratio > 0
-                      ? cell.ratio
-                      : 0.15;
+                      ? 0.4 + cell.ratio * 0.6 // Boost contrast for active days
+                      : 0.08; // Lower inactive days opacity
 
                 const tooltipText = cell.isFuture
                   ? cell.date

@@ -16,9 +16,18 @@ export default async function StudioPage({ params }: PageProps) {
   const user = await currentUser();
   let roomId = '';
   let isSaved = false;
+  let capacity = 0;
   let creatorId = '';
+  let currentUserHandle = '';
+  let currentDisplayName = '';
 
   if (user) {
+    const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+    if (dbUser) {
+      currentUserHandle = dbUser.handle;
+      currentDisplayName = dbUser.displayName;
+    }
+
     const room = await prisma.room.findUnique({
       where: { slug },
       include: {
@@ -31,10 +40,20 @@ export default async function StudioPage({ params }: PageProps) {
       roomId = room.id;
       isSaved = room.savedBy.length > 0;
       creatorId = room.creatorId;
+      capacity = room.capacity;
     }
   }
 
   return (
-    <StudioClient slug={slug} initialPwd={pwd} roomId={roomId} initialIsSaved={isSaved} creatorId={creatorId} />
+    <StudioClient 
+      slug={slug} 
+      initialPwd={pwd} 
+      roomId={roomId} 
+      initialIsSaved={isSaved} 
+      creatorId={creatorId} 
+      capacity={capacity} 
+      currentUserHandle={currentUserHandle}
+      currentDisplayName={currentDisplayName}
+    />
   );
 }
