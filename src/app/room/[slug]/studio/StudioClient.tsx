@@ -1,0 +1,523 @@
+'use client';
+
+import { useState, KeyboardEvent, useEffect, useRef } from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
+import { useSignaling } from '@/hooks/useSignaling';
+import { useWebRTC } from '@/hooks/useWebRTC';
+import { LocalVideoPod } from '@/components/LocalVideoPod';
+import { RemoteVideoPod } from '@/components/RemoteVideoPod';
+import { TaskDeck } from '@/components/TaskDeck';
+// import { AIAssistant } from '@/components/AIAssistant';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useTheme } from 'next-themes';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { Palette, PanelRightClose, PanelRightOpen, LogOut, MessageSquare } from 'lucide-react';
+import { toggleSaveRoom } from '@/app/actions/room-actions';
+import { getRoomLeaderboard } from '@/app/actions/gamification-actions';
+import { useInbox } from '@/context/InboxContext';
+
+interface StudioClientProps {
+  slug: string;
+  initialPwd?: string;
+  roomId?: string;
+  initialIsSaved?: boolean;
+  creatorId?: string;
+}
+
+export default function StudioClient({ slug, initialPwd, roomId, initialIsSaved, creatorId }: StudioClientProps) {
+  const { user, isLoaded } = useUser();
+  const searchParams = useSearchParams();
+  const pwd = initialPwd || searchParams.get('pwd') || undefined;
+  const initCam = searchParams.get('cam') !== '0';
+  const initMic = searchParams.get('mic') !== '0';
+
+  const [maxPods, setMaxPods] = useState(6);
+  const [localState, setLocalState] = useState<'grid' | 'minimized' | 'hidden'>('grid');
+  const constraintsRef = useRef<HTMLDivElement>(null);
+
+  const [isSaved, setIsSaved] = useState(initialIsSaved || false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const { theme, setTheme } = useTheme();
+  const { toggleInbox, totalUnread } = useInbox();
+
+  const themesList = [
+    { id: 'structural-brutalist', name: 'Structural Brutalist', icon: '🏛️' },
+    { id: 'lofi-aesthetic', name: 'Lofi Aesthetic', icon: '🎧' },
+    { id: 'dark-academia', name: 'Dark Academia', icon: '🕰️' },
+    { id: 'light-academia', name: 'Light Academia', icon: '📜' },
+    { id: 'pastel-dream', name: 'Pastel Dream', icon: '☁️' },
+    { id: 'cyberpunk-neon', name: 'Cyberpunk Neon', icon: '🦾' },
+    { id: 'deep-abyss', name: 'Deep Abyss', icon: '🌊' },
+    { id: 'matcha-zen', name: 'Matcha Zen', icon: '🍵' },
+    { id: 'monochrome', name: 'Monochrome', icon: '⬛' },
+    { id: 'metallic-silver', name: 'Metallic Silver', icon: '💿' },
+    { id: 'sunset-vaporwave', name: 'Sunset Vaporwave', icon: '🌅' }
+  ];
+
+  // ── Static identity — no Math.random(), no Date.now() ────────────────────────
+  const displayName  = user?.username || user?.firstName || 'Guest';
+  const activeUserId = user?.id       || 'guest_user';
+  const avatarUrl    = user?.imageUrl  || null;
+
+  // Stable object for useSignaling — shape matches what the hook expects.
+  const currentUser = { handle: displayName, id: activeUserId };
+
+
+  const { isConnected, messages, sendMessage, socket } = useSignaling(slug, currentUser, pwd);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+
+  // GAMIFICATION STATE
+  interface LeaderboardEntry {
+    id: string;
+    handle: string;
+    totalMinutes: number;
+    title: string;
+  }
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+
+  useEffect(() => {
+    if (!socket) return;
+    const interval = setInterval(() => {
+       // Only ping if the user actually has stream tracks enabled to prevent AFK farming
+       socket.emit('activity:ping');
+    }, 60000); // 1-minute heartbeat
+    return () => clearInterval(interval);
+  }, [socket]);
+
+  useEffect(() => {
+    if (!initCam && !initMic) return;
+    navigator.mediaDevices.getUserMedia({ video: initCam, audio: initMic })
+      .then(stream => setLocalStream(stream))
+      .catch(err => console.error('Failed to access media devices', err));
+  }, [initCam, initMic]);
+
+  const { peers } = useWebRTC(localStream);
+
+  const [isVideoOff, setIsVideoOff] = useState(!initCam);
+  const [isAudioMuted, setIsAudioMuted] = useState(!initMic);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+
+  const handleToggleSave = async () => {
+    if (!roomId) return;
+    setIsSaving(true);
+    const previousState = isSaved;
+    setIsSaved(!isSaved); // Optimistic UI update
+    try {
+      await toggleSaveRoom(roomId);
+    } catch (error) {
+      console.error('Failed to toggle save room', error);
+      setIsSaved(previousState); // Revert on failure
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const toggleAudio = () => {
+    if (localStream) {
+      localStream.getAudioTracks().forEach(track => {
+        track.enabled = isAudioMuted; 
+      });
+      setIsAudioMuted(!isAudioMuted);
+    }
+  };
+
+  const toggleVideo = () => {
+    if (localStream) {
+      localStream.getVideoTracks().forEach(track => {
+        track.enabled = isVideoOff; 
+      });
+      setIsVideoOff(!isVideoOff);
+    }
+  };
+
+  const toggleScreenShare = async () => {
+    try {
+      if (isScreenSharing) {
+        // ── Stop sharing: revert to camera ──────────────────────────────────
+        const camStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false, // audio track is already live in localStream
+        });
+        const camTrack = camStream.getVideoTracks()[0];
+
+        // Replace track in every peer RTCPeerConnection (no re-signaling needed)
+        peers.forEach(peer => {
+          const sender = peer.pc.getSenders().find(s => s.track?.kind === 'video');
+          if (sender) sender.replaceTrack(camTrack);
+        });
+
+        // Build fresh MediaStream so React re-renders LocalVideoPod cleanly
+        if (localStream) {
+          const freshStream = new MediaStream([
+            camTrack,
+            ...localStream.getAudioTracks(),
+          ]);
+          setLocalStream(freshStream);
+          // Stop old video tracks after swapping
+          localStream.getVideoTracks().forEach(t => t.stop());
+        }
+
+        setIsScreenSharing(false);
+        setIsVideoOff(false);
+
+      } else {
+        // ── Start sharing: capture display ───────────────────────────────────
+        const displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        const screenTrack  = displayStream.getVideoTracks()[0];
+
+        // Replace track in every peer RTCPeerConnection (no re-signaling needed)
+        peers.forEach(peer => {
+          const sender = peer.pc.getSenders().find(s => s.track?.kind === 'video');
+          if (sender) sender.replaceTrack(screenTrack);
+        });
+
+        // Build fresh MediaStream so React re-renders LocalVideoPod cleanly
+        if (localStream) {
+          const freshStream = new MediaStream([
+            screenTrack,
+            ...localStream.getAudioTracks(),
+          ]);
+          setLocalStream(freshStream);
+          // Stop old camera track after swapping
+          localStream.getVideoTracks().forEach(t => t.stop());
+        }
+
+        setIsScreenSharing(true);
+
+        // Auto-revert when user clicks the browser "Stop sharing" button
+        screenTrack.onended = () => {
+          setIsScreenSharing(prev => {
+            if (prev) toggleScreenShare(); // use latest closure
+            return prev;
+          });
+        };
+      }
+    } catch (err) {
+      console.error('[toggleScreenShare]', err);
+    }
+  };
+
+  const [panelOpen, setPanelOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState<'chat' | 'people' | 'ambience' | 'leaderboard' | 'tasks' | 'engine'>('chat');
+  const [chatInput, setChatInput] = useState('');
+  
+  useEffect(() => {
+    if (activeTab === 'leaderboard' && slug) {
+      getRoomLeaderboard(slug).then(setLeaderboard);
+    }
+  }, [activeTab, slug]);
+  
+  const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
+
+  const togglePin = (id: string) => {
+    setPinnedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleChatSubmit = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && chatInput.trim()) {
+      sendMessage(chatInput.trim());
+      setChatInput('');
+    }
+  };
+
+  const displayPeers = peers.slice(0, maxPods - 1);
+
+  // ── Guard: wait for Clerk before rendering anything dynamic ─────────────────
+  if (!isLoaded) return null;
+
+  return (
+    <div className="flex flex-col h-screen w-full bg-background overflow-hidden font-[family-name:var(--font-primary)]">
+      <div className="flex-grow flex flex-row min-h-0">
+        <main className="flex-1 flex flex-col relative" ref={constraintsRef}>
+        
+        {/* Header */}
+        <header className="h-14 border-b-[length:var(--border-weight)] border-border flex items-center justify-between px-6 bg-surface z-10">
+          <div className="flex items-center gap-4">
+            <span className="font-[family-name:var(--font-primary)] text-xs text-secondary px-2 border-l-[length:var(--border-weight)] border-border">
+              {isConnected ? 'LIVE' : 'CONNECTING...'}
+            </span>
+          </div>
+
+          {/* Minimal Theme Switcher */}
+          <div className="flex items-center">
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <button className="p-2 border border-border text-foreground bg-background hover:bg-border active:scale-95 transition-all outline-none">
+                  <Palette size={16} />
+                </button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content 
+                  className="min-w-[200px] max-h-[400px] overflow-y-auto bg-surface-high border border-border p-2 font-[family-name:var(--font-primary)] text-sm z-50 shadow-[var(--ui-shadow)]" 
+                  align="end" 
+                  sideOffset={8}
+                >
+                  <div className="px-2 py-1 text-[10px] uppercase tracking-widest text-secondary font-bold">
+                    Aesthetics
+                  </div>
+                  {themesList.map((t) => (
+                    <DropdownMenu.Item 
+                      key={t.id}
+                      className={`px-3 py-2 cursor-pointer hover:bg-border outline-none text-foreground flex justify-between ${theme === t.id ? 'bg-border/50 text-primary' : ''}`}
+                      onClick={() => setTheme(t.id)}
+                    >
+                      <span>{t.name}</span>
+                      <span>{t.icon}</span>
+                    </DropdownMenu.Item>
+                  ))}
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
+          </div>
+        </header>
+
+        {/* Video Grid */}
+        <div className="flex-1 p-4 pb-6 grid gap-4 overflow-hidden" style={{ 
+          gridTemplateColumns: `repeat(auto-fit, minmax(280px, 1fr))`,
+          gridAutoRows: '1fr'
+        }}>
+          {localState === 'grid' && (
+            <LocalVideoPod 
+              stream={localStream} 
+              state={localState} 
+              onStateChange={setLocalState}
+              isVideoOff={isVideoOff}
+              displayName={displayName}
+              avatarUrl={avatarUrl}
+            />
+          )}
+          {displayPeers.map(peer => (
+            <RemoteVideoPod 
+              key={peer.peerID}
+              stream={peer.stream}
+              handle={peer.user?.handle || 'Unknown'}
+              userId={peer.user?.id}
+            />
+          ))}
+        </div>
+
+        {/* Local Minimized Pip */}
+        <AnimatePresence>
+          {localState === 'minimized' && (
+            <motion.div
+              drag
+              dragConstraints={constraintsRef}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              className="absolute bottom-6 left-6 w-48 h-32 z-50 cursor-grab active:cursor-grabbing shadow-[var(--ui-shadow)]"
+            >
+              <LocalVideoPod 
+                stream={localStream} 
+                state={localState} 
+                onStateChange={setLocalState} 
+                isVideoOff={isVideoOff}
+                displayName={displayName}
+                avatarUrl={avatarUrl}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        </main>
+
+        {/* Right Panel */}
+        {panelOpen && (
+          <aside className="w-80 border-l-[length:var(--border-weight)] border-border bg-surface flex flex-col z-20 shrink-0">
+          <div className="flex border-b border-border flex-wrap">
+            <button 
+              onClick={() => setActiveTab('chat')}
+              className={`flex-1 min-w-[30%] py-3 text-[10px] font-[family-name:var(--font-primary)] font-bold uppercase transition-colors ${activeTab === 'chat' ? 'bg-primary text-primary-foreground' : 'text-secondary hover:text-foreground'}`}
+            >
+              Chat
+            </button>
+            <button 
+              onClick={() => setActiveTab('people')}
+              className={`flex-1 min-w-[30%] py-3 text-[10px] font-[family-name:var(--font-primary)] font-bold uppercase transition-colors ${activeTab === 'people' ? 'bg-primary text-primary-foreground' : 'text-secondary hover:text-foreground'}`}
+            >
+              People ({peers.length + 1})
+            </button>
+            <button 
+              onClick={() => setActiveTab('tasks')}
+              className={`flex-1 min-w-[30%] py-3 text-[10px] font-[family-name:var(--font-primary)] font-bold uppercase transition-colors ${activeTab === 'tasks' ? 'bg-primary text-primary-foreground' : 'text-secondary hover:text-foreground'}`}
+            >
+              Tasks
+            </button>
+            <button 
+              onClick={() => setActiveTab('leaderboard')}
+              className={`flex-1 min-w-[30%] py-3 text-[10px] font-[family-name:var(--font-primary)] font-bold uppercase transition-colors ${activeTab === 'leaderboard' ? 'bg-primary text-primary-foreground' : 'text-secondary hover:text-foreground'}`}
+            >
+              Ranks
+            </button>
+          </div>
+
+          {activeTab === 'tasks' ? (
+            <div className="flex-1 overflow-hidden">
+               {isLoaded && user ? (
+                 <TaskDeck userId={user.id} />
+               ) : (
+                 <div className="flex items-center justify-center h-full text-[10px] text-secondary font-[family-name:var(--font-primary)] uppercase tracking-widest">
+                   [ AUTHENTICATING... ]
+                 </div>
+               )}
+            </div>
+          ) : (
+          <div className="flex-1 overflow-y-auto p-4">
+            {activeTab === 'chat' && (
+              <div className="flex flex-col gap-4">
+                {messages.map((m, i) => (
+                  <div key={i} className="flex flex-col gap-1">
+                    <span className="font-[family-name:var(--font-primary)] text-[10px] text-secondary">
+                      {m.sender?.handle || 'Unknown'} • {m.time}
+                    </span>
+                    <p className="text-sm text-foreground">{m.text}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {activeTab === 'people' && (
+              <div className="flex flex-col gap-2">
+                <div className="px-3 py-2 border border-border text-foreground font-[family-name:var(--font-primary)] text-sm flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                    <span className="font-bold">{currentUser.handle} <span className="text-secondary font-normal">(You)</span></span>
+                  </div>
+                </div>
+                
+                {peers.map(peer => (
+                  <div key={peer.peerID} className="px-3 py-2 border border-border text-foreground font-[family-name:var(--font-primary)] text-sm flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                      <span className="font-bold">{peer.user?.handle || 'Unknown'}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {activeTab === 'leaderboard' && (
+              <div className="flex flex-col gap-2">
+                <div className="px-3 py-2 bg-surface-high border-[length:var(--border-weight)] border-border text-foreground font-[family-name:var(--font-primary)] text-xs uppercase font-bold tracking-widest text-center mb-2">
+                  Top Scholars
+                </div>
+                {leaderboard.length === 0 && (
+                  <div className="text-center text-secondary text-xs mt-4">No data yet. Keep grinding!</div>
+                )}
+                {leaderboard.map((u, i) => (
+                  <div key={u.id} className="p-3 border-[length:var(--border-weight)] border-border text-foreground font-[family-name:var(--font-primary)] text-sm flex flex-col gap-1 rounded-[var(--radius)]">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold flex items-center gap-2">
+                        <span className="text-secondary text-xs">#{i + 1}</span> {u.handle}
+                      </span>
+                      <span className="font-bold text-primary">{u.totalMinutes}m</span>
+                    </div>
+                    <span className="text-[10px] text-secondary font-bold uppercase tracking-widest">[{u.title}]</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          )}
+
+          {activeTab === 'chat' && (
+            <div className="p-4 border-t border-border">
+              <input 
+                type="text"
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={handleChatSubmit}
+                placeholder="Message room..."
+                className="w-full bg-background border border-border px-3 py-2 text-sm font-[family-name:var(--font-primary)] focus:border-primary outline-none text-foreground placeholder:text-border"
+              />
+            </div>
+          )}
+        </aside>
+      )}
+      </div>
+
+      {/* Global Bottom Control Toolbar */}
+      <footer className="shrink-0 h-16 border-t-[length:var(--border-weight)] border-border bg-surface flex items-center justify-between px-6 z-30 font-[family-name:var(--font-primary)]">
+        {/* Left: Leave / Nav */}
+        <div className="flex items-center w-1/3">
+          <Link href="/dashboard" className="flex items-center gap-2 font-bold text-red-500 hover:text-red-400 transition-colors uppercase text-xs tracking-widest">
+            <LogOut size={16} /> Leave Studio
+          </Link>
+        </div>
+
+        {/* Center: Core Controls */}
+        <div className="flex items-center justify-center gap-4 w-1/3">
+          {roomId && (
+            <button 
+              onClick={handleToggleSave}
+              disabled={isSaving}
+              className={`border-[length:var(--border-weight)] border-border font-mono tracking-wider px-4 py-2 text-xs rounded-[var(--radius)] uppercase transition-all font-bold ${isSaved ? 'bg-foreground text-background border-foreground' : 'bg-surface hover:bg-surface-high text-foreground'}`}
+            >
+              {isSaved ? 'SAVED' : 'SAVE ROOM'}
+            </button>
+          )}
+
+          <button 
+            onClick={toggleAudio}
+            className={`border-[length:var(--border-weight)] border-border font-mono tracking-wider px-4 py-2 text-xs rounded-[var(--radius)] uppercase transition-all font-bold ${!isAudioMuted ? 'bg-primary text-primary-foreground' : 'bg-surface hover:bg-surface-high text-foreground'}`}
+          >
+            {!isAudioMuted ? 'MIC ON' : 'MIC OFF'}
+          </button>
+          
+          <button 
+            onClick={toggleVideo}
+            className={`border-[length:var(--border-weight)] border-border font-mono tracking-wider px-4 py-2 text-xs rounded-[var(--radius)] uppercase transition-all font-bold ${!isVideoOff ? 'bg-primary text-primary-foreground' : 'bg-surface hover:bg-surface-high text-foreground'}`}
+          >
+            {!isVideoOff ? 'CAM ON' : 'CAM OFF'}
+          </button>
+
+          <button 
+            onClick={toggleScreenShare}
+            className={`border-[length:var(--border-weight)] border-border font-mono tracking-wider px-4 py-2 text-xs rounded-[var(--radius)] uppercase transition-all font-bold ${isScreenSharing ? 'bg-primary text-primary-foreground' : 'bg-surface hover:bg-surface-high text-foreground'}`}
+          >
+            {isScreenSharing ? 'SHARING' : 'SHARE SCREEN'}
+          </button>
+        </div>
+
+        {/* Right: Inbox DM + Panel Toggle */}
+        <div className="flex items-center justify-end gap-2 w-1/3">
+          {/* Inbox trigger — opens the InboxWidget overlay mounted at root */}
+          <button
+            onClick={toggleInbox}
+            className="p-3 rounded-[var(--radius)] border-[length:var(--border-weight)] border-border bg-surface hover:bg-surface-high text-foreground active:scale-95 transition-all flex items-center gap-2 text-xs font-bold uppercase relative"
+          >
+            <MessageSquare size={16} />
+            DMs
+            {totalUnread > 0 && (
+              <span
+                className="absolute -top-1 -right-1 text-[8px] font-bold w-3.5 h-3.5 flex items-center justify-center"
+                style={{ background: 'var(--color-primary)', color: 'var(--color-primary-foreground)' }}
+              >
+                {totalUnread}
+              </span>
+            )}
+          </button>
+
+          <button 
+            onClick={() => setPanelOpen(!panelOpen)}
+            className="p-3 rounded-[var(--radius)] border-[length:var(--border-weight)] border-border bg-surface hover:bg-surface-high text-foreground active:scale-95 transition-all flex items-center gap-2 text-xs font-bold uppercase"
+          >
+            {panelOpen ? (
+              <><PanelRightClose size={16} /> Hide Chat</>
+            ) : (
+              <><PanelRightOpen size={16} /> Show Chat</>
+            )}
+          </button>
+        </div>
+      </footer>
+    </div>
+  );
+}

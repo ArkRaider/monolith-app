@@ -1,0 +1,374 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --radius: 0px;
+    --border-weight: 2px;
+    --ui-shadow: none;
+    --font-primary: var(--font-inter);
+  }
+
+  [data-layout='structural-brutalist'] {
+    --radius: 0px;
+    --border-weight: 2px;
+    --ui-shadow: none;
+    --font-primary: var(--font-inter);
+  }
+
+  [data-layout='cyber-glow'] {
+    --radius: 4px;
+    --border-weight: 1px;
+    --ui-shadow: 0 0 12px rgba(0, 200, 255, 0.3), 0 0 24px rgba(0, 200, 255, 0.1);
+    --font-primary: var(--font-jetbrains-mono);
+  }
+
+  [data-layout='retro-pixel'] {
+    --radius: 0px;
+    --border-weight: 4px;
+    --ui-shadow: inset 2px 2px 0px #ffffff, inset -2px -2px 0px #555555;
+    --font-primary: 'Press Start 2P', monospace;
+    font-size: 11px;
+  }
+
+  [data-layout='cozy-studio'] {
+    --radius: 20px;
+    --border-weight: 0px;
+    --ui-shadow: 0 10px 40px rgba(0, 0, 0, 0.06);
+    --font-primary: Georgia, serif;
+  }
+}
+
+@theme {
+  --color-background: var(--bg);
+  --color-foreground: var(--fg);
+
+  --color-surface: var(--surface);
+  --color-surface-container: var(--surface-container);
+  --color-surface-high: var(--surface-high);
+
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-tertiary: var(--tertiary);
+
+  --color-border: var(--border);
+  --color-border-hover: var(--border-hover);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, monospace;
+
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+}
+
+:root, [data-theme='structural-brutalist'] {
+  --bg: #141311;
+  --fg: #e6e2dd;
+  --surface: #20201d;
+  --surface-container: #2b2a27;
+  --surface-high: #3d3b38;
+  --primary: #787958;
+  --secondary: #797868;
+  --tertiary: #cbb6cf;
+  --border: #48473d;
+  --border-hover: #787958;
+}
+
+[data-theme='lofi-aesthetic'] {
+  --bg: #1a1829;
+  --fg: #e0e7ff;
+  --surface: #2a273f;
+  --surface-container: #393552;
+  --surface-high: #44415a;
+  --primary: #f472b6;
+  --secondary: #a78bfa;
+  --tertiary: #60a5fa;
+  --border: #4a4768;
+  --border-hover: #f472b6;
+}
+
+[data-theme='dark-academia'] {
+  --bg: #2c241b;
+  --fg: #e8e6e1;
+  --surface: #3e3427;
+  --surface-container: #4d4133;
+  --surface-high: #5e5140;
+  --primary: #8b7355;
+  --secondary: #6e5c45;
+  --tertiary: #9c8a70;
+  --border: #5c4d3c;
+  --border-hover: #8b7355;
+}
+
+[data-theme='light-academia'] {
+  --bg: #f4f1ea;
+  --fg: #4a3f35;
+  --surface: #e8e4d9;
+  --surface-container: #d9d2c2;
+  --surface-high: #c2baab;
+  --primary: #8b7355;
+  --secondary: #6e5c45;
+  --tertiary: #9c8a70;
+  --border: #d1c7b7;
+  --border-hover: #8b7355;
+}
+
+[data-theme='pastel-dream'] {
+  --bg: #fdf4ff;
+  --fg: #4a044e;
+  --surface: #fae8ff;
+  --surface-container: #f5d0fe;
+  --surface-high: #f0abfc;
+  --primary: #c084fc;
+  --secondary: #a855f7;
+  --tertiary: #d8b4fe;
+  --border: #f5d0fe;
+  --border-hover: #c084fc;
+}
+
+[data-theme='cyberpunk-neon'] {
+  --bg: #0b0f19;
+  --fg: #00ffcc;
+  --surface: #131b2f;
+  --surface-container: #1b2644;
+  --surface-high: #24345d;
+  --primary: #ff0055;
+  --secondary: #cc00ff;
+  --tertiary: #00e6ff;
+  --border: #24345d;
+  --border-hover: #ff0055;
+}
+
+[data-theme='deep-abyss'] {
+  --bg: #010a15;
+  --fg: #c4f1f9;
+  --surface: #031830;
+  --surface-container: #062b55;
+  --surface-high: #093c76;
+  --primary: #00d2ff;
+  --secondary: #00a3cc;
+  --tertiary: #33e5ff;
+  --border: #062b55;
+  --border-hover: #00d2ff;
+}
+
+[data-theme='matcha-zen'] {
+  --bg: #f3f5ed;
+  --fg: #2c3622;
+  --surface: #e5ead7;
+  --surface-container: #d5ddc0;
+  --surface-high: #c2cda5;
+  --primary: #6b8c42;
+  --secondary: #567035;
+  --tertiary: #8baf62;
+  --border: #c2cda5;
+  --border-hover: #6b8c42;
+}
+
+[data-theme='monochrome'] {
+  --bg: #0a0a0a;
+  --fg: #f5f5f5;
+  --surface: #171717;
+  --surface-container: #262626;
+  --surface-high: #404040;
+  --primary: #ffffff;
+  --secondary: #a3a3a3;
+  --tertiary: #d4d4d4;
+  --border: #404040;
+  --border-hover: #ffffff;
+}
+
+[data-theme='metallic-silver'] {
+  --bg: #0f1115;
+  --fg: #f8fafc;
+  --surface: #1e232b;
+  --surface-container: #2d3542;
+  --surface-high: #414a59;
+  --primary: #94a3b8;
+  --secondary: #64748b;
+  --tertiary: #cbd5e1;
+  --border: #414a59;
+  --border-hover: #94a3b8;
+}
+
+[data-theme='sunset-vaporwave'] {
+  --bg: #1a0b2e;
+  --fg: #ffc2b3;
+  --surface: #2b114d;
+  --surface-container: #3d1b6b;
+  --surface-high: #53248f;
+  --primary: #ff6b6b;
+  --secondary: #ff8e53;
+  --tertiary: #d63384;
+  --border: #53248f;
+  --border-hover: #ff6b6b;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  @apply font-sans;
+}
+
+/* Base resets for the design system */
+button,
+input,
+select,
+textarea {
+  border-radius: 0 !important;
+}
+
+/* Remove outline on focus, use border instead */
+*:focus-visible {
+  outline: none;
+}
+
+/* --- Custom Minimalist Scrollbar --- */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-primary);
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* --- Sign-Up Component Animations --- */
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateY(0px);
+  }
+}
+
+@keyframes slideRightIn {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateX(20px);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateX(0px);
+  }
+}
+
+@keyframes testimonialIn {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(20px) scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateY(0px) scale(1);
+  }
+}
+
+@layer utilities {
+  .animate-element {
+    opacity: 0;
+    animation: fadeSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-slide-right {
+    opacity: 0;
+    animation: slideRightIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-testimonial {
+    opacity: 0;
+    animation: testimonialIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-delay-100 {
+    animation-delay: 100ms;
+  }
+
+  .animate-delay-200 {
+    animation-delay: 200ms;
+  }
+
+  .animate-delay-300 {
+    animation-delay: 300ms;
+  }
+
+  .animate-delay-400 {
+    animation-delay: 400ms;
+  }
+
+  .animate-delay-500 {
+    animation-delay: 500ms;
+  }
+
+  .animate-delay-600 {
+    animation-delay: 600ms;
+  }
+
+  .animate-delay-700 {
+    animation-delay: 700ms;
+  }
+
+  .animate-delay-800 {
+    animation-delay: 800ms;
+  }
+
+  .animate-delay-900 {
+    animation-delay: 900ms;
+  }
+
+  .animate-delay-1000 {
+    animation-delay: 1000ms;
+  }
+
+  .animate-delay-1200 {
+    animation-delay: 1200ms;
+  }
+
+  .animate-delay-1400 {
+    animation-delay: 1400ms;
+  }
+}
+
+/* Brutalist Minimalist Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+  border-left: 1px solid var(--color-border);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border: 1px solid var(--color-background);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
+}
