@@ -27,18 +27,36 @@ export function MinimalRemoteVideoPod({
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [volume, setVolume] = useState(1);
 
+  const [isVideoActive, setIsVideoActive] = useState(false);
+
+  // Detect whether the stream has an active video track
   useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
-    }
+    if (!stream) { queueMicrotask(() => setIsVideoActive(false)); return; }
+    const checkVideo = () => {
+      const videoTracks = stream.getVideoTracks();
+      queueMicrotask(() => setIsVideoActive(videoTracks.length > 0 && videoTracks.some(t => t.enabled && t.readyState === 'live')));
+    };
+    checkVideo();
+    stream.addEventListener('addtrack', checkVideo);
+    stream.addEventListener('removetrack', checkVideo);
+    return () => {
+      stream.removeEventListener('addtrack', checkVideo);
+      stream.removeEventListener('removetrack', checkVideo);
+    };
   }, [stream]);
 
+  // CRITICAL FIX: Run after every render to ensure srcObject isn't lost
   useEffect(() => {
+    if (videoRef.current && stream) {
+      if (videoRef.current.srcObject !== stream) {
+        videoRef.current.srcObject = stream;
+      }
+    }
     if (videoRef.current) {
       videoRef.current.volume = volume;
       videoRef.current.muted = isAudioMuted;
     }
-  }, [volume, isAudioMuted]);
+  });
 
   return (
     <div className={`relative w-full h-full overflow-hidden rounded-[32px] border group transition-all duration-300 ${isDark ? 'border-white/10 bg-[#181a20]/80 shadow-2xl backdrop-blur-xl' : 'border-black/10 bg-white/80 shadow-xl backdrop-blur-xl'}`}>
@@ -69,10 +87,10 @@ export function MinimalRemoteVideoPod({
         ref={videoRef}
         autoPlay 
         playsInline 
-        className={`w-full h-full object-contain aspect-video bg-black/5 block transition-opacity duration-300 ${!stream || stream.getVideoTracks().length === 0 ? 'hidden' : 'block'}`}
+        className={`w-full h-full object-contain aspect-video bg-black/5 block transition-opacity duration-300 ${!isVideoActive ? 'hidden' : 'block'}`}
       />
       
-      {(!stream || stream.getVideoTracks().length === 0) && (
+      {!isVideoActive && (
         <div className="w-full h-full flex items-center justify-center relative bg-black/20">
           <div className="w-16 h-16 rounded-full bg-indigo-500 flex items-center justify-center text-white text-xl font-bold shadow-lg">
             {handle.charAt(0).toUpperCase()}
