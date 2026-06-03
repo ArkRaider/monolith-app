@@ -22,11 +22,14 @@ export function useWebRTC(localStream: MediaStream | null) {
   useEffect(() => {
     if (!localStream) return;
     peersRef.current.forEach(peer => {
-      const senders = peer.pc.getSenders();
+      const transceivers = peer.pc.getTransceivers();
       localStream.getTracks().forEach(track => {
-        const sender = senders.find(s => s.track?.kind === track.kind);
-        if (sender) {
-          sender.replaceTrack(track);
+        const transceiver = transceivers.find(t => t.receiver.track.kind === track.kind || t.sender.track?.kind === track.kind);
+        if (transceiver && transceiver.sender) {
+          transceiver.sender.replaceTrack(track);
+          if (transceiver.direction !== 'sendrecv') {
+            try { transceiver.direction = 'sendrecv'; } catch (e) {}
+          }
         } else {
           try { peer.pc.addTrack(track, localStream); } catch (e) {}
         }
@@ -76,14 +79,14 @@ export function useWebRTC(localStream: MediaStream | null) {
       if (localStreamRef.current) {
         const audioTrack = localStreamRef.current.getAudioTracks()[0];
         const videoTrack = localStreamRef.current.getVideoTracks()[0];
-        const senders = pc.getSenders();
+        const transceivers = pc.getTransceivers();
         if (audioTrack) {
-          const s = senders.find(s => s.track?.kind === 'audio' || s.receiver?.track?.kind === 'audio');
-          if (s) s.replaceTrack(audioTrack);
+          const t = transceivers.find(t => t.receiver.track.kind === 'audio' || t.sender.track?.kind === 'audio');
+          if (t && t.sender) t.sender.replaceTrack(audioTrack);
         }
         if (videoTrack) {
-          const s = senders.find(s => s.track?.kind === 'video' || s.receiver?.track?.kind === 'video');
-          if (s) s.replaceTrack(videoTrack);
+          const t = transceivers.find(t => t.receiver.track.kind === 'video' || t.sender.track?.kind === 'video');
+          if (t && t.sender) t.sender.replaceTrack(videoTrack);
         }
       }
 

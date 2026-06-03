@@ -87,6 +87,8 @@ export function RemoteVideoPod({ stream, handle, userId, isAdmin, onKick }: { st
       if (videoRef.current.srcObject !== stream) {
         videoRef.current.srcObject = stream;
       }
+      // Force play in case autoplay policy or late track arrival caused a black screen pause
+      videoRef.current.play().catch(e => console.warn('RemoteVideoPod play blocked', e));
     }
   });
 

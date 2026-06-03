@@ -53,6 +53,8 @@ export function MinimalRemoteVideoPod({
       if (videoRef.current.srcObject !== stream) {
         videoRef.current.srcObject = stream;
       }
+      // Force play in case autoplay policy or late track arrival caused a black screen pause
+      videoRef.current.play().catch(e => console.warn('MinimalRemoteVideoPod play blocked', e));
     }
     if (videoRef.current) {
       videoRef.current.volume = volume;
