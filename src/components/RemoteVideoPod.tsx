@@ -59,6 +59,8 @@ export function RemoteVideoPod({ stream, handle, userId, isAdmin, onKick }: { st
   const [friendshipStatus, setFriendshipStatus] = useState('NONE');
   const [bannerError, setBannerError] = useState(false);
 
+  const trackCount = stream?.getTracks().length || 0;
+
   // Detect whether the stream has an active video track
   useEffect(() => {
     if (!stream) { queueMicrotask(() => setIsVideoActive(false)); return; }
@@ -73,7 +75,7 @@ export function RemoteVideoPod({ stream, handle, userId, isAdmin, onKick }: { st
       stream.removeEventListener('addtrack', checkVideo);
       stream.removeEventListener('removetrack', checkVideo);
     };
-  }, [stream]);
+  }, [stream, trackCount]);
 
   const initials = profile?.displayName
     ? profile.displayName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)

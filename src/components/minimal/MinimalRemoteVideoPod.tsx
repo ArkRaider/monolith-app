@@ -29,6 +29,8 @@ export function MinimalRemoteVideoPod({
 
   const [isVideoActive, setIsVideoActive] = useState(false);
 
+  const trackCount = stream?.getTracks().length || 0;
+
   // Detect whether the stream has an active video track
   useEffect(() => {
     if (!stream) { queueMicrotask(() => setIsVideoActive(false)); return; }
@@ -43,7 +45,7 @@ export function MinimalRemoteVideoPod({
       stream.removeEventListener('addtrack', checkVideo);
       stream.removeEventListener('removetrack', checkVideo);
     };
-  }, [stream]);
+  }, [stream, trackCount]);
 
   // CRITICAL FIX: Run after every render to ensure srcObject isn't lost
   useEffect(() => {
