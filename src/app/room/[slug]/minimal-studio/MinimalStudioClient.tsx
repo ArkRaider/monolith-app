@@ -99,7 +99,7 @@ export default function MinimalStudioClient({ slug, initialPwd, roomId, initialI
     const handleKicked = () => {
       alert("You have been removed from the room by the admin.");
       if (socket.connected) socket.disconnect();
-      router.push('/dashboard');
+      router.push('/dashboard/minimal');
     };
     
     socket.on('kicked_from_room', handleKicked);

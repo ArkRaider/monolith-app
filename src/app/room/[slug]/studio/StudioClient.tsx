@@ -112,7 +112,7 @@ export default function StudioClient({ slug, initialPwd, roomId, initialIsSaved,
     const handleKicked = () => {
       alert("You have been removed from the room by the admin.");
       if (socket.connected) socket.disconnect();
-      router.push('/dashboard');
+      router.push('/dashboard/traditional');
     };
     
     socket.on('kicked_from_room', handleKicked);
@@ -172,7 +172,7 @@ export default function StudioClient({ slug, initialPwd, roomId, initialIsSaved,
         console.error('Failed to delete temporary room', err);
       }
     }
-    router.push('/dashboard');
+    router.push('/dashboard/traditional');
   };
 
   const toggleAudio = () => {
