@@ -4,13 +4,14 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useUser, useClerk } from '@clerk/nextjs';
 import { useEffect, useState, useMemo } from 'react';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { useTheme } from 'next-themes';
-import { useLayout, LayoutPreference } from '@/components/theme-provider';
 import { CheckCircle, Circle, Trophy, Calendar } from 'lucide-react';
 import { getUserStudyGrid, getUserStreak } from '@/app/actions/gamification-actions';
 import { GlobalPomodoro } from '@/components/GlobalPomodoro';
 import { useTodos } from '@/hooks/useTodos';
+import { NavProfileBadge } from '@/components/navigation/NavProfileBadge';
+import { NavLinks } from '@/components/navigation/NavLinks';
+import { useTheme } from 'next-themes';
+import { useLayout } from '@/components/theme-provider';
 
 // ── Opacity scaling — no divide-by-zero ──────────────────────────────────────
 function xpToOpacity(xp: number, goal: number): number {
@@ -77,35 +78,6 @@ export function Sidebar() {
     }
   }, [isLoaded, user]);
 
-  const coreThemes = [
-    { id: 'structural-brutalist', name: 'Structural Brutalist', icon: '🏛️' },
-    { id: 'lofi-aesthetic', name: 'Lofi Aesthetic', icon: '🎧' },
-    { id: 'dark-academia', name: 'Dark Academia', icon: '🕰️' },
-    { id: 'light-academia', name: 'Light Academia', icon: '📜' },
-    { id: 'pastel-dream', name: 'Pastel Dream', icon: '☁️' }
-  ];
-
-  const curatedThemes = [
-    { id: 'cyberpunk-neon', name: 'Cyberpunk Neon', icon: '🦾' },
-    { id: 'deep-abyss', name: 'Deep Abyss', icon: '🌊' },
-    { id: 'matcha-zen', name: 'Matcha Zen', icon: '🍵' },
-    { id: 'monochrome', name: 'Monochrome', icon: '⬛' },
-    { id: 'metallic-silver', name: 'Metallic Silver', icon: '💿' },
-    { id: 'sunset-vaporwave', name: 'Sunset Vaporwave', icon: '🌅' }
-  ];
-
-  const navItems = [
-    { name: 'Discover', href: '/dashboard/discover' },
-    { name: 'My Rooms', href: '/dashboard/my-rooms' },
-    { name: 'Saved', href: '/dashboard/saved' },
-    { name: 'Settings', href: '/settings' },
-  ];
-
-  const displayName = isLoaded && user ? user.fullName || 'User' : 'Loading...';
-  const displayHandle = isLoaded && user
-    ? (user.username ? `@${user.username}` : `@${user.emailAddresses[0]?.emailAddress.split('@')[0]}`)
-    : '@loading';
-
   const monthGrid      = buildMonthGrid(activityData);
   const activeDaysCount = activityData.filter(d => d.xpGained > 0 || d.minutesStudied > 0).length;
 
@@ -148,112 +120,7 @@ export function Sidebar() {
   return (
     <>
       <aside className="hidden md:flex flex-col w-[260px] border-r border-border p-6 flex-shrink-0 bg-background z-10 relative h-screen overflow-y-auto">
-        <DropdownMenu.Root>
-          <DropdownMenu.Trigger asChild>
-            <button
-              className="flex items-center gap-3 mb-8 w-full text-left hover:opacity-80 transition-opacity outline-none"
-              onClick={(e) => {
-                const computed = window.getComputedStyle(e.currentTarget);
-                console.log("[Dropdown Trigger Debug] Trigger opacity:", computed.opacity);
-              }}
-            >
-              {isLoaded && user?.imageUrl ? (
-                <img src={user.imageUrl} alt="Profile" className="w-8 h-8 rounded-[var(--radius)] border border-border shrink-0 object-cover" />
-              ) : (
-                <div className="w-8 h-8 bg-surface border border-border shrink-0" />
-              )}
-              <div className="flex flex-col min-w-0">
-                <span className="font-[family-name:var(--font-primary)] font-medium text-sm truncate text-foreground">{displayName}</span>
-                <span className="font-[family-name:var(--font-primary)] text-secondary text-xs truncate">{displayHandle}</span>
-              </div>
-            </button>
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Portal>
-            <DropdownMenu.Content
-              className="min-w-[220px] max-h-[400px] overflow-y-auto border border-border p-2 font-[family-name:var(--font-primary)] text-sm shadow-2xl rounded-lg overflow-hidden"
-              style={{ backgroundColor: 'var(--surface-high)', zIndex: 99999 }}
-              sideOffset={5}
-            >
-              <div className="px-2 py-1 text-[10px] uppercase tracking-widest text-secondary font-bold">
-                Core Aesthetics
-              </div>
-              {coreThemes.map((t) => (
-                <DropdownMenu.Item
-                  key={t.id}
-                  className={`px-3 py-2 cursor-pointer hover:bg-border outline-none text-foreground flex justify-between ${theme === t.id ? 'bg-border/50' : ''}`}
-                  onClick={() => {
-                    console.log(`[Theme Debug] Switching Theme (colors) to:`, t.id);
-                    setTheme(t.id);
-                    setTimeout(() => {
-                      console.log(`[Theme Debug] HTML data-theme attribute is now:`, document.documentElement.getAttribute('data-theme'));
-                    }, 50);
-                  }}
-                >
-                  <span>{t.name}</span>
-                  <span>{t.icon}</span>
-                </DropdownMenu.Item>
-              ))}
-
-              <DropdownMenu.Separator className="h-px bg-border my-2" />
-
-              <div className="px-2 py-1 text-[10px] uppercase tracking-widest text-secondary font-bold">
-                Curated Palettes
-              </div>
-              {curatedThemes.map((t) => (
-                <DropdownMenu.Item
-                  key={t.id}
-                  className={`px-3 py-2 cursor-pointer hover:bg-border outline-none text-foreground flex justify-between ${theme === t.id ? 'bg-border/50' : ''}`}
-                  onClick={() => {
-                    console.log(`[Theme Debug] Switching Theme (colors) to:`, t.id);
-                    setTheme(t.id);
-                    setTimeout(() => {
-                      console.log(`[Theme Debug] HTML data-theme attribute is now:`, document.documentElement.getAttribute('data-theme'));
-                    }, 50);
-                  }}
-                >
-                  <span>{t.name}</span>
-                  <span>{t.icon}</span>
-                </DropdownMenu.Item>
-              ))}
-
-              <DropdownMenu.Separator className="h-px bg-border my-2" />
-
-              <div className="px-2 py-1 text-[10px] uppercase tracking-widest text-secondary font-bold">
-                Interface Style
-              </div>
-              {[
-                { id: 'structural-brutalist', name: 'Brutalist Canvas' },
-                { id: 'cyber-glow', name: 'Cyber Glow' },
-                { id: 'retro-pixel', name: 'Retro Pixel' },
-                { id: 'cozy-studio', name: 'Cozy Studio' }
-              ].map((l) => (
-                <DropdownMenu.Item
-                  key={l.id}
-                  className={`px-3 py-2 cursor-pointer hover:bg-border outline-none text-foreground flex justify-between ${layout === l.id ? 'bg-border/50' : ''}`}
-                  onClick={() => {
-                    console.log(`[Layout Debug] Switching Layout (shapes) to:`, l.id);
-                    setLayout(l.id as LayoutPreference);
-                    setTimeout(() => {
-                      console.log(`[Layout Debug] HTML data-layout attribute is now:`, document.documentElement.getAttribute('data-layout'));
-                    }, 50);
-                  }}
-                >
-                  <span>{l.name}</span>
-                  {layout === l.id && <span>✓</span>}
-                </DropdownMenu.Item>
-              ))}
-
-              <DropdownMenu.Separator className="h-px bg-border my-2" />
-              <DropdownMenu.Item
-                className="px-3 py-2 cursor-pointer hover:bg-border outline-none text-foreground flex justify-between"
-                onClick={() => signOut()}
-              >
-                <span>Sign Out</span>
-                <span>🚪</span>
-              </DropdownMenu.Item>
-            </DropdownMenu.Content>
-          </DropdownMenu.Portal>
-        </DropdownMenu.Root>
+        <NavProfileBadge />
 
         <div className="mb-8">
           <div className="font-[family-name:var(--font-primary)] text-sm tracking-widest text-primary flex items-center gap-2 font-black">
@@ -261,20 +128,7 @@ export function Sidebar() {
           </div>
         </div>
 
-        <nav className="flex flex-col gap-4 font-[family-name:var(--font-primary)] text-sm mb-6">
-          {navItems.map(item => {
-            const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname?.startsWith(item.href));
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`transition-colors truncate ${isActive ? 'text-primary font-medium' : 'text-secondary hover:text-foreground'}`}
-              >
-                {item.name}
-              </Link>
-            );
-          })}
-        </nav>
+        <NavLinks />
 
         {/* Divider */}
         <div className="h-px bg-border mb-6 w-full" />

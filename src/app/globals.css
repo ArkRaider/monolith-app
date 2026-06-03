@@ -220,7 +220,7 @@ button,
 input,
 select,
 textarea {
-  border-radius: 0 !important;
+  /* Removed border-radius: 0 !important; so Tailwind rounded utilities work */
 }
 
 /* Remove outline on focus, use border instead */

@@ -71,18 +71,7 @@ export function LocalVideoPod({ stream, state, onStateChange, isVideoOff, displa
         </div>
       )}
 
-      {/* State Controls (Top Right) */}
-      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
-        {state === 'grid' ? (
-          <button onClick={() => onStateChange('minimized')} className="p-1.5 bg-surface-high border border-border text-secondary hover:text-foreground active:scale-[0.98]">
-            <Minimize2 size={14} />
-          </button>
-        ) : (
-          <button onClick={() => onStateChange('grid')} className="p-1.5 bg-surface-high border border-border text-secondary hover:text-foreground active:scale-[0.98]">
-            <Maximize2 size={14} />
-          </button>
-        )}
-      </div>
+
 
 
       {/* Name label — gradient scrim */}

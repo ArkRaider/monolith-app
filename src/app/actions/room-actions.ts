@@ -81,7 +81,7 @@ export async function verifyRoomPassword(slug: string, passwordAttempt: string) 
     return result;
   } catch (error) {
     console.error('[room-actions] verifyRoomPassword error:', error);
-    return { error: 'Failed to verify password' };
+    return { success: false, error: 'Failed to verify password' };
   }
 }
 

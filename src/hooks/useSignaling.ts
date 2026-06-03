@@ -14,6 +14,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { signalingSocket } from '@/lib/socketClient';
 import type { Socket } from 'socket.io-client';
+import { useNotifications } from '@/components/room/context/NotificationContext';
 
 // Track which room this tab's socket is currently joined to.
 // Lives at module level so it survives React re-renders.
@@ -35,6 +36,7 @@ export function useSignaling(
     time?: string;
   }
   const [messages,    setMessages]    = useState<ChatMessage[]>([]);
+  const { addNotification } = useNotifications();
 
   // joinedRef prevents emitting room:join more than once per mount cycle,
   // even if connect fires twice (StrictMode) or the effect re-runs.
@@ -83,6 +85,23 @@ export function useSignaling(
 
     const onChatMessage = (message: { senderId?: string; sender: { handle: string; id: string; initials?: string }; text: string; time?: string }) => {
       setMessages(prev => [...prev, message]);
+      addNotification({
+        type: 'chat',
+        message: message.text,
+        senderName: message.sender.handle,
+        senderId: message.sender.id,
+      });
+    };
+
+    const onJoinRequested = (data: { targetSocketId: string; user: { handle: string; id: string }; roomId: string }) => {
+      addNotification({
+        type: 'join_request',
+        message: `${data.user.handle} wants to join the room.`,
+        senderName: data.user.handle,
+        senderId: data.user.id,
+        socketId: data.targetSocketId,
+        roomId: data.roomId,
+      });
     };
 
     // ── Attach listeners ─────────────────────────────────────────────────────
@@ -90,6 +109,7 @@ export function useSignaling(
     signalingSocket.on('disconnect',    onDisconnect);
     signalingSocket.on('connect_error', onConnectError);
     signalingSocket.on('chat-message',  onChatMessage);
+    signalingSocket.on('room:join-requested', onJoinRequested);
 
     // ── Connect (no-op if already connected) ─────────────────────────────────
     if (signalingSocket.connected) {
@@ -105,6 +125,7 @@ export function useSignaling(
       signalingSocket.off('disconnect',    onDisconnect);
       signalingSocket.off('connect_error', onConnectError);
       signalingSocket.off('chat-message',  onChatMessage);
+      signalingSocket.off('room:join-requested', onJoinRequested);
 
       // Fully disconnect when leaving a room so the next room gets a clean join.
       signalingSocket.disconnect();
@@ -129,5 +150,46 @@ export function useSignaling(
     }
   };
 
-  return { socket, isConnected, messages, sendMessage };
+  // ── Minimal Room Interactions (Tile Messages & Reactions) ────────────────
+  const [peerStatuses, setPeerStatuses] = useState<Record<string, string>>({});
+  const [activeReactions, setActiveReactions] = useState<{fromSocketId: string, emoji: string, id: number, targetSocketId?: string}[]>([]);
+
+  useEffect(() => {
+    const onStatusUpdate = (data: { socketId: string, status: string }) => {
+      setPeerStatuses(prev => ({ ...prev, [data.socketId]: data.status }));
+    };
+
+    const onReaction = (data: { fromSocketId: string, emoji: string, targetSocketId?: string }) => {
+      const reactionObj = { ...data, id: Date.now() + Math.random() };
+      setActiveReactions(prev => [...prev, reactionObj]);
+      // Remove reaction after 3 seconds
+      setTimeout(() => {
+        setActiveReactions(prev => prev.filter(r => r.id !== reactionObj.id));
+      }, 3000);
+    };
+
+    signalingSocket.on('room:status_update', onStatusUpdate);
+    signalingSocket.on('room:reaction', onReaction);
+
+    return () => {
+      signalingSocket.off('room:status_update', onStatusUpdate);
+      signalingSocket.off('room:reaction', onReaction);
+    };
+  }, []);
+
+  const sendStatus = (status: string) => {
+    if (isConnected) {
+      signalingSocket.emit('room:set_status', { roomId, status });
+      // update locally
+      setPeerStatuses(prev => ({ ...prev, [signalingSocket.id || 'local']: status }));
+    }
+  };
+
+  const sendReaction = (emoji: string, targetSocketId?: string) => {
+    if (isConnected) {
+      signalingSocket.emit('room:send_reaction', { roomId, emoji, targetSocketId });
+    }
+  };
+
+  return { socket, isConnected, messages, sendMessage, peerStatuses, activeReactions, sendStatus, sendReaction };
 }

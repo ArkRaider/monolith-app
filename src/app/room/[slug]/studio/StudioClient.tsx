@@ -29,14 +29,15 @@ interface StudioClientProps {
   capacity?: number;
   currentUserHandle?: string;
   currentDisplayName?: string;
+  isCurated?: boolean;
 }
 
-export default function StudioClient({ slug, initialPwd, roomId, initialIsSaved, creatorId, capacity = 0, currentUserHandle, currentDisplayName }: StudioClientProps) {
+export default function StudioClient({ slug, initialPwd, roomId, initialIsSaved, creatorId, capacity = 0, currentUserHandle, currentDisplayName, isCurated }: StudioClientProps) {
   const { user, isLoaded } = useUser();
   const searchParams = useSearchParams();
   const pwd = initialPwd || searchParams.get('pwd') || undefined;
   const initCam = searchParams.get('cam') !== '0';
-  const initMic = searchParams.get('mic') !== '0';
+  const initMic = !isCurated && searchParams.get('mic') !== '0';
 
   const [maxPods, setMaxPods] = useState(6);
   const [localState, setLocalState] = useState<'grid' | 'minimized' | 'hidden'>('grid');
@@ -45,6 +46,7 @@ export default function StudioClient({ slug, initialPwd, roomId, initialIsSaved,
   const [videoMinimized, setVideoMinimized] = useState(false);
   const [zenMode, setZenMode] = useState(false);
   const [topHovered, setTopHovered] = useState(false);
+  const [isToolbarMinimized, setIsToolbarMinimized] = useState(true);
 
   const [isSaved, setIsSaved] = useState(initialIsSaved || false);
   const [isSaving, setIsSaving] = useState(false);
@@ -150,7 +152,9 @@ export default function StudioClient({ slug, initialPwd, roomId, initialIsSaved,
     const previousState = isSaved;
     setIsSaved(!isSaved); // Optimistic UI update
     try {
-      await toggleSaveRoom(roomId);
+      const formData = new FormData();
+      formData.append('roomId', roomId);
+      await toggleSaveRoom(formData);
     } catch (error) {
       console.error('Failed to toggle save room', error);
       setIsSaved(previousState); // Revert on failure
@@ -400,29 +404,29 @@ export default function StudioClient({ slug, initialPwd, roomId, initialIsSaved,
             />
           </div>
         ) : (
-          <div className="flex-1 p-4 pb-6 grid gap-4 overflow-hidden" style={{ 
-            gridTemplateColumns: `repeat(auto-fit, minmax(280px, 1fr))`,
-            gridAutoRows: '1fr'
-          }}>
+          <div className="flex-1 p-4 pb-6 flex flex-wrap content-center justify-center gap-4 overflow-y-auto">
             {localState === 'grid' && (
-              <LocalVideoPod 
-                stream={localStream} 
-                state={localState} 
-                onStateChange={setLocalState}
-                isVideoOff={isVideoOff}
-                displayName={displayName}
-                avatarUrl={avatarUrl}
-              />
+              <div className="relative aspect-video flex-grow basis-[300px] max-w-[800px] min-w-[280px]">
+                <LocalVideoPod 
+                  stream={localStream} 
+                  state={localState} 
+                  onStateChange={setLocalState}
+                  isVideoOff={isVideoOff}
+                  displayName={displayName}
+                  avatarUrl={avatarUrl}
+                />
+              </div>
             )}
             {displayPeers.map(peer => (
-              <RemoteVideoPod 
-                key={peer.peerID}
-                stream={peer.stream}
-                handle={peer.user?.handle || 'Unknown'}
-                userId={peer.user?.id}
-                isAdmin={isAdmin}
-                onKick={() => handleKick(peer.peerID, peer.user?.id)}
-              />
+              <div key={peer.peerID} className="relative aspect-video flex-grow basis-[300px] max-w-[800px] min-w-[280px]">
+                <RemoteVideoPod 
+                  stream={peer.stream}
+                  handle={peer.user?.handle || 'Unknown'}
+                  userId={peer.user?.id}
+                  isAdmin={isAdmin}
+                  onKick={() => handleKick(peer.peerID, peer.user?.id)}
+                />
+              </div>
             ))}
           </div>
         )}
@@ -567,95 +571,104 @@ export default function StudioClient({ slug, initialPwd, roomId, initialIsSaved,
         )}
       </div>
 
-      {/* Global Bottom Control Toolbar */}
-      <AnimatePresence>
-        {!zenMode && (
+      {/* Floating Bottom Dock */}
+      <AnimatePresence mode="wait">
+        {!zenMode && isToolbarMinimized && (
+          <motion.button
+            key="dash"
+            initial={{ y: 50, opacity: 0, x: '-50%' }}
+            animate={{ y: 0, opacity: 1, x: '-50%' }}
+            exit={{ y: 50, opacity: 0, x: '-50%' }}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setIsToolbarMinimized(false)}
+            className="absolute bottom-6 left-1/2 z-50 w-16 h-1.5 rounded-full bg-foreground/30 hover:bg-foreground/50 transition-colors shadow-lg"
+          />
+        )}
+        {!zenMode && !isToolbarMinimized && (
           <motion.footer
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 64, opacity: 1 }}
-            exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
-            className="shrink-0 border-t-[length:var(--border-weight)] border-border bg-surface flex items-center justify-between px-6 z-30 font-[family-name:var(--font-primary)]"
+            key="full"
+            initial={{ y: 50, opacity: 0, x: '-50%' }}
+            animate={{ y: 0, opacity: 1, x: '-50%' }}
+            exit={{ y: 50, opacity: 0, x: '-50%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="absolute bottom-6 left-1/2 z-50 flex flex-col items-center gap-2 font-[family-name:var(--font-primary)]"
           >
-            {/* Left: Leave / Nav */}
-            <div className="flex items-center w-1/3">
-              <button onClick={handleLeaveRoom} className="flex items-center gap-2 font-bold text-red-500 hover:text-red-400 transition-colors uppercase text-xs tracking-widest outline-none">
-                <LogOut size={16} /> Leave Studio
+            <div className="flex items-center gap-4 px-6 py-3 rounded-[2rem] backdrop-blur-3xl border shadow-2xl bg-surface/50 border-border/50">
+              {/* Nav */}
+              <button onClick={handleLeaveRoom} className="p-3 rounded-full border transition-all hover:scale-105 active:scale-95 bg-red-500/10 border-red-500/20 text-red-500 hover:bg-red-500/20">
+                <LogOut size={18} /> 
               </button>
-            </div>
 
-            {/* Center: Core Controls */}
-            <div className="flex items-center justify-center gap-4 w-1/3">
+              <div className="w-px h-8 bg-foreground/10" />
+
+              {/* Core Controls */}
               {roomId && (
                 <button 
                   onClick={handleToggleSave}
                   disabled={isSaving}
-                  className={`border-[length:var(--border-weight)] border-border font-mono tracking-wider px-4 py-2 text-xs rounded-[var(--radius)] uppercase transition-all font-bold ${isSaved ? 'bg-foreground text-background border-foreground' : 'bg-surface hover:bg-surface-high text-foreground'}`}
+                  className={`px-5 py-3 text-xs font-bold tracking-[0.15em] rounded-full uppercase transition-all hover:scale-105 active:scale-95 ${isSaved ? 'bg-foreground text-background' : 'bg-surface/50 text-foreground hover:bg-surface'}`}
                 >
-                  {isSaved ? 'SAVED' : 'SAVE ROOM'}
+                  {isSaved ? 'Saved' : 'Save'}
                 </button>
               )}
 
-              <button 
-                onClick={toggleAudio}
-                className={`border-[length:var(--border-weight)] border-border font-mono tracking-wider px-4 py-2 text-xs rounded-[var(--radius)] uppercase transition-all font-bold ${!isAudioMuted ? 'bg-primary text-primary-foreground' : 'bg-surface hover:bg-surface-high text-foreground'}`}
-              >
-                {!isAudioMuted ? 'MIC ON' : 'MIC OFF'}
-              </button>
+              {!isCurated && (
+                <button 
+                  onClick={toggleAudio}
+                  className={`px-5 py-3 text-xs font-bold tracking-[0.15em] rounded-full uppercase transition-all hover:scale-105 active:scale-95 ${!isAudioMuted ? 'bg-foreground text-background' : 'bg-surface/50 text-foreground hover:bg-surface'}`}
+                >
+                  {!isAudioMuted ? 'Mic On' : 'Mic Off'}
+                </button>
+              )}
               
               <button 
                 onClick={toggleVideo}
-                className={`border-[length:var(--border-weight)] border-border font-mono tracking-wider px-4 py-2 text-xs rounded-[var(--radius)] uppercase transition-all font-bold ${!isVideoOff ? 'bg-primary text-primary-foreground' : 'bg-surface hover:bg-surface-high text-foreground'}`}
+                className={`px-5 py-3 text-xs font-bold tracking-[0.15em] rounded-full uppercase transition-all hover:scale-105 active:scale-95 ${!isVideoOff ? 'bg-foreground text-background' : 'bg-surface/50 text-foreground hover:bg-surface'}`}
               >
-                {!isVideoOff ? 'CAM ON' : 'CAM OFF'}
+                {!isVideoOff ? 'Cam On' : 'Cam Off'}
               </button>
 
               <button 
                 onClick={toggleScreenShare}
-                className={`border-[length:var(--border-weight)] border-border font-mono tracking-wider px-4 py-2 text-xs rounded-[var(--radius)] uppercase transition-all font-bold ${isScreenSharing ? 'bg-primary text-primary-foreground' : 'bg-surface hover:bg-surface-high text-foreground'}`}
+                className={`px-5 py-3 text-xs font-bold tracking-[0.15em] rounded-full uppercase transition-all hover:scale-105 active:scale-95 ${isScreenSharing ? 'bg-foreground text-background' : 'bg-surface/50 text-foreground hover:bg-surface'}`}
               >
-                {isScreenSharing ? 'SHARING' : 'SHARE SCREEN'}
+                {isScreenSharing ? 'Sharing' : 'Share'}
               </button>
               
-              {capacity === 1 && !isVideoOff && (
-                <button 
-                  onClick={() => setVideoMinimized(!videoMinimized)}
-                  className={`border-[length:var(--border-weight)] border-border font-mono tracking-wider px-4 py-2 text-xs rounded-[var(--radius)] uppercase transition-all font-bold ${videoMinimized ? 'bg-primary text-primary-foreground' : 'bg-surface hover:bg-surface-high text-foreground'}`}
+              <div className="w-px h-8 bg-foreground/10" />
+
+              {/* DMs / Panel Toggle */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={toggleInbox}
+                  className={`p-3 rounded-full transition-all hover:scale-110 active:scale-95 relative bg-surface/50 text-foreground hover:bg-surface`}
                 >
-                  {videoMinimized ? 'EXPAND POD' : 'MINIMIZE POD'}
+                  <MessageSquare size={18} />
+                  {totalUnread > 0 && (
+                    <span
+                      className="absolute -top-1 -right-1 text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full bg-primary text-primary-foreground"
+                    >
+                      {totalUnread}
+                    </span>
+                  )}
                 </button>
-              )}
+
+                <button 
+                  onClick={() => setPanelOpen(!panelOpen)}
+                  className={`p-3 rounded-full transition-all hover:scale-110 active:scale-95 bg-surface/50 text-foreground hover:bg-surface ${capacity === 1 ? 'hidden' : ''}`}
+                >
+                  {panelOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
+                </button>
+              </div>
             </div>
 
-            {/* Right: Inbox DM + Panel Toggle */}
-            <div className="flex items-center justify-end gap-2 w-1/3">
-              {/* Inbox trigger — opens the InboxWidget overlay mounted at root */}
-              <button
-                onClick={toggleInbox}
-                className="p-3 rounded-[var(--radius)] border-[length:var(--border-weight)] border-border bg-surface hover:bg-surface-high text-foreground active:scale-95 transition-all flex items-center gap-2 text-xs font-bold uppercase relative"
-              >
-                <MessageSquare size={16} />
-                DMs
-                {totalUnread > 0 && (
-                  <span
-                    className="absolute -top-1 -right-1 text-[8px] font-bold w-3.5 h-3.5 flex items-center justify-center"
-                    style={{ background: 'var(--color-primary)', color: 'var(--color-primary-foreground)' }}
-                  >
-                    {totalUnread}
-                  </span>
-                )}
-              </button>
-
-              <button 
-                onClick={() => setPanelOpen(!panelOpen)}
-                className={`p-3 rounded-[var(--radius)] border-[length:var(--border-weight)] border-border bg-surface hover:bg-surface-high text-foreground active:scale-95 transition-all flex items-center gap-2 text-xs font-bold uppercase ${capacity === 1 ? 'hidden' : ''}`}
-              >
-                {panelOpen ? (
-                  <><PanelRightClose size={16} /> Hide Chat</>
-                ) : (
-                  <><PanelRightOpen size={16} /> Show Chat</>
-                )}
-              </button>
-            </div>
+            <button
+              onClick={() => setIsToolbarMinimized(true)}
+              className="p-1 rounded-full bg-surface/50 border border-border/50 text-secondary hover:text-foreground transition-colors hover:bg-surface shadow-md"
+            >
+              <ChevronDown size={14} />
+            </button>
           </motion.footer>
         )}
       </AnimatePresence>

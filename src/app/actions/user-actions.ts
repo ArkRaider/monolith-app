@@ -120,3 +120,70 @@ export async function getUserProfile(handle: string) {
     return { error: 'Failed to get user profile' };
   }
 }
+
+export async function updateOnboardingProfile(data: {
+  displayName?: string;
+  handle?: string;
+  bio?: string;
+  currentGrind?: string;
+  subjects?: string[];
+  focusPreference?: string;
+  defaultAmbience?: string;
+}) {
+  try {
+    const clerkUser = await currentUser();
+    if (!clerkUser) return { error: 'Unauthorized' };
+
+    await prisma.user.update({
+      where: { id: clerkUser.id },
+      data: {
+        ...(data.displayName && { displayName: data.displayName }),
+        ...(data.handle && { handle: data.handle }),
+        ...(data.bio && { bio: data.bio }),
+        ...(data.currentGrind && { currentGrind: data.currentGrind }),
+        ...(data.subjects && { subjects: data.subjects }),
+        ...(data.focusPreference && { focusPreference: data.focusPreference }),
+        ...(data.defaultAmbience && { defaultAmbience: data.defaultAmbience }),
+        updatedAt: new Date(),
+      },
+    });
+
+    revalidatePath('/dashboard');
+    return { success: true };
+  } catch (error) {
+    console.error('[user-actions] updateOnboardingProfile error:', error);
+    return { error: 'Failed to update onboarding profile' };
+  }
+}
+
+export async function getMyProfile() {
+  try {
+    const clerkUser = await currentUser();
+    if (!clerkUser) return { error: 'Unauthorized' };
+    
+    const dbUser = await prisma.user.findUnique({
+      where: { id: clerkUser.id },
+      select: {
+        id: true,
+        handle: true,
+        displayName: true,
+        avatarUrl: true,
+        bio: true,
+        instagram: true,
+        twitter: true,
+        github: true,
+        bannerUrl: true,
+        currentGrind: true,
+        programmingTools: true,
+        activeGoals: true,
+        customLinks: true,
+        lastActive: true,
+        xp: true,
+      },
+    });
+    return { profile: dbUser };
+  } catch (error) {
+    console.error('[user-actions] getMyProfile error:', error);
+    return { error: 'Failed to fetch my profile' };
+  }
+}

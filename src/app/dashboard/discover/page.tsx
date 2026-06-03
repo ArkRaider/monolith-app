@@ -49,7 +49,10 @@ export default async function DiscoverPage() {
                   </span>
                 )}
                 {userId && (
-                  <form action={toggleSaveRoom}>
+                  <form action={async (formData) => {
+                            'use server';
+                            await toggleSaveRoom(formData);
+                          }}>
                     <input type="hidden" name="roomId" value={room.id} />
                     <button type="submit" className="text-secondary hover:text-primary transition-colors">
                       <Bookmark size={18} className={(room.savedBy && room.savedBy.length > 0) ? 'fill-primary text-primary' : ''} />

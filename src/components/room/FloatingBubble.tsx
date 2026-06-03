@@ -17,7 +17,7 @@ interface FloatingBubbleProps {
   id: string;
   initialX?: number;
   initialY?: number;
-  constraintsRef?: React.RefObject<HTMLDivElement>;
+  constraintsRef?: React.RefObject<HTMLDivElement | null>;
   children: (props: { minimized: boolean }) => React.ReactNode;
   
   // Optional external control
@@ -55,13 +55,14 @@ export function FloatingBubble({
   const [isMounted, setIsMounted] = useState(false);
   const [windowBounds, setWindowBounds] = useState({ width: 0, height: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const initialSizeRef = useRef({ width: 0, height: 0 });
 
   useEffect(() => {
     setWindowBounds({ width: window.innerWidth, height: window.innerHeight });
     const handleResize = () => setWindowBounds({ width: window.innerWidth, height: window.innerHeight });
     window.addEventListener('resize', handleResize);
 
-    const saved = localStorage.getItem(`widget_${id}`);
+    const saved = localStorage.getItem(`widget_v2_${id}`);
     if (saved) {
       try {
         const parsed: WidgetState = JSON.parse(saved);
@@ -94,7 +95,7 @@ export function FloatingBubble({
       isLocked, 
       ...newState 
     };
-    localStorage.setItem(`widget_${id}`, JSON.stringify(current));
+    localStorage.setItem(`widget_v2_${id}`, JSON.stringify(current));
   };
 
   const x = useMotionValue(0);
@@ -115,18 +116,15 @@ export function FloatingBubble({
   const handleResizeStart = () => {
     if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
+      initialSizeRef.current = { width: rect.width, height: rect.height };
       setSize({ width: rect.width, height: rect.height });
     }
   };
 
   const handleResizeDrag = (e: any, info: PanInfo) => {
-    setSize(prev => {
-      const currentWidth = typeof prev.width === 'number' ? prev.width : 200;
-      const currentHeight = typeof prev.height === 'number' ? prev.height : 200;
-      return {
-        width: Math.max(150, currentWidth + info.delta.x),
-        height: Math.max(100, currentHeight + info.delta.y)
-      };
+    setSize({
+      width: Math.max(150, initialSizeRef.current.width + info.offset.x),
+      height: Math.max(100, initialSizeRef.current.height + info.offset.y)
     });
   };
 

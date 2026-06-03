@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Bookmark, Trash2 } from 'lucide-react';
 import { deleteRoomAction } from '@/app/actions/room-actions';
+import { OnboardingFlow } from '@/components/OnboardingFlow';
 
 interface Room {
   id: string;
@@ -169,6 +170,9 @@ export function DashboardClient({ initialRooms, clerkId }: { initialRooms: Room[
           </div>
         </div>
       </main>
+
+      {/* Onboarding Overlay */}
+      <OnboardingFlow />
     </div>
   );
 }

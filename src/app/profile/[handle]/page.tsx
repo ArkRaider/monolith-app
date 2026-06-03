@@ -37,7 +37,7 @@ export default async function ProfilePage({ params }: PageProps) {
   const { handle } = await params;
   const profile = await getUserProfile(handle);
 
-  if (!profile) {
+  if (!profile || 'error' in profile) {
     notFound();
   }
 

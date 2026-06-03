@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Dancing_Script } from "next/font/google";
 import { ClerkProvider } from '@clerk/nextjs';
-import Script from "next/script";
+import Script from 'next/script';
+
 import "./globals.css";
 
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
+  weight: ["400", "500", "700"],
 });
 
 const jetbrainsMono = JetBrains_Mono({
@@ -14,9 +16,16 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
 });
 
+const dancingScript = Dancing_Script({
+  variable: "--font-script",
+  subsets: ["latin"],
+});
+
 import { ThemeProvider } from "@/components/theme-provider";
 import { NotificationProvider } from "@/context/NotificationContext";
 import { InboxProvider } from "@/context/InboxContext";
+import { NotificationsProvider } from "@/context/NotificationsContext";
+import { ProfileProvider } from "@/context/ProfileContext";
 import { InboxWidget } from "@/components/InboxWidget";
 
 export const metadata: Metadata = {
@@ -41,25 +50,19 @@ export default function RootLayout({
         }
       }}
     >
-      <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`} suppressHydrationWarning>
-        <head>
-          {/* Theme initializer — keeps your selected UI Profile after refresh */}
-          <Script
-            id="theme-initializer"
-            strategy="beforeInteractive"
-            dangerouslySetInnerHTML={{
-              __html: `
-                try {
-                  var layout = localStorage.getItem('layoutPreference');
-                  if (layout) {
-                    document.documentElement.dataset.layout = layout;
-                  }
-                } catch (e) {}
-              `,
-            }}
-          />
-        </head>
+      <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} ${dancingScript.variable} h-full antialiased`} suppressHydrationWarning>
         <body className="min-h-full flex flex-col">
+          {/* Theme initializer — keeps your selected UI Profile after refresh */}
+          <Script id="theme-initializer">
+            {`
+              try {
+                var layout = localStorage.getItem('layoutPreference');
+                if (layout) {
+                  document.documentElement.dataset.layout = layout;
+                }
+              } catch (e) {}
+            `}
+          </Script>
           {/* We use ThemeProvider to manage your custom UI Profiles */}
           <ThemeProvider
             attribute="data-theme"
@@ -73,10 +76,14 @@ export default function RootLayout({
             ]}
           >
             <NotificationProvider>
-              <InboxProvider>
-                {children}
-                <InboxWidget />
-              </InboxProvider>
+              <NotificationsProvider>
+                <ProfileProvider>
+                  <InboxProvider>
+                    {children}
+                    <InboxWidget />
+                  </InboxProvider>
+                </ProfileProvider>
+              </NotificationsProvider>
             </NotificationProvider>
           </ThemeProvider>
         </body>

@@ -47,6 +47,8 @@ export function useTodos(userId: string | null) {
 
         if (cancelled) return;
 
+        if ('error' in goals) throw new Error(String(goals.error));
+
         const todoList: Todo[] = goals.map((g: GoalItemData) => ({
           id: g.id,
           text: g.title,
@@ -81,6 +83,8 @@ export function useTodos(userId: string | null) {
 
       try {
         const created = await createGoal({ title: text, xpWeight: xp });
+        if ('error' in created) throw new Error(String(created.error));
+        
         // Replace temp with real
         setTodos((prev) =>
           prev.map((t) => (t.id === tempId ? { ...t, id: created.id } : t))
@@ -143,14 +147,16 @@ export function useTodos(userId: string | null) {
       console.error('[useTodos] Failed to clear done goals:', err);
       // Reload on failure
       const goals = await getUserGoals();
-      setTodos(
-        goals.map((g) => ({
-          id: g.id,
-          text: g.title,
-          done: g.isCompleted,
-          xp: g.xpWeight,
-        }))
-      );
+      if (!('error' in goals)) {
+        setTodos(
+          goals.map((g) => ({
+            id: g.id,
+            text: g.title,
+            done: g.isCompleted,
+            xp: g.xpWeight,
+          }))
+        );
+      }
     }
   }, [userId]);
 
@@ -180,14 +186,16 @@ export function useTodos(userId: string | null) {
         console.error('[useTodos] Failed to delete goal:', err);
         // Reload on failure
         const goals = await getUserGoals();
-        setTodos(
-          goals.map((g) => ({
-            id: g.id,
-            text: g.title,
-            done: g.isCompleted,
-            xp: g.xpWeight,
-          }))
-        );
+        if (!('error' in goals)) {
+          setTodos(
+            goals.map((g) => ({
+              id: g.id,
+              text: g.title,
+              done: g.isCompleted,
+              xp: g.xpWeight,
+            }))
+          );
+        }
       }
     },
     [userId]

@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import StudioClient from './StudioClient';
 import prisma from '@/lib/prisma';
 import { currentUser } from '@clerk/nextjs/server';
+import { NotificationProvider } from '@/components/room/context/NotificationContext';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -20,6 +21,8 @@ export default async function StudioPage({ params }: PageProps) {
   let creatorId = '';
   let currentUserHandle = '';
   let currentDisplayName = '';
+
+  let isCurated = false;
 
   if (user) {
     const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
@@ -41,19 +44,23 @@ export default async function StudioPage({ params }: PageProps) {
       isSaved = room.savedBy.length > 0;
       creatorId = room.creatorId;
       capacity = room.capacity;
+      isCurated = room.isDefaultRoom;
     }
   }
 
   return (
-    <StudioClient 
-      slug={slug} 
-      initialPwd={pwd} 
-      roomId={roomId} 
-      initialIsSaved={isSaved} 
-      creatorId={creatorId} 
-      capacity={capacity} 
-      currentUserHandle={currentUserHandle}
-      currentDisplayName={currentDisplayName}
-    />
+    <NotificationProvider>
+      <StudioClient 
+        slug={slug} 
+        initialPwd={pwd} 
+        roomId={roomId} 
+        initialIsSaved={isSaved} 
+        creatorId={creatorId} 
+        capacity={capacity} 
+        currentUserHandle={currentUserHandle}
+        currentDisplayName={currentDisplayName}
+        isCurated={isCurated}
+      />
+    </NotificationProvider>
   );
 }

@@ -43,26 +43,28 @@ export function PomodoroWidget({ minimized }: { minimized?: boolean }) {
   }
 
   return (
-    <div className="flex flex-col gap-4 min-w-[200px] w-full h-full">
+    <div className="flex flex-col gap-4 min-w-[200px] w-full h-full p-2" style={{ containerType: 'inline-size' }}>
       <div className="flex items-center justify-center gap-2">
-        <Timer className="w-5 h-5 text-primary" />
-        <h3 className="text-base font-semibold text-foreground font-[family-name:var(--font-primary)] uppercase tracking-widest">Pomodoro</h3>
+        <Timer className="text-primary" style={{ width: '8cqw', height: '8cqw' }} />
+        <h3 className="font-semibold text-foreground font-[family-name:var(--font-primary)] uppercase tracking-widest" style={{ fontSize: '7cqw' }}>Pomodoro</h3>
       </div>
-      <div className="flex-1 flex items-center justify-center my-4">
-        <div className="text-5xl font-bold font-mono text-center text-foreground tracking-widest">
+      <div className="flex-1 flex items-center justify-center my-2">
+        <div className="font-bold font-mono text-center text-foreground tracking-widest" style={{ fontSize: '20cqw' }}>
           {formatTime(timeLeft)}
         </div>
       </div>
       <div className="flex gap-2 mt-auto">
         <button 
           onClick={toggleTimer}
-          className="flex-1 bg-primary text-primary-foreground py-2.5 rounded-2xl text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-opacity"
+          className="flex-1 bg-primary text-primary-foreground rounded-2xl font-bold uppercase tracking-wider hover:opacity-90 transition-opacity"
+          style={{ fontSize: '5cqw', padding: '3cqw' }}
         >
           {isRunning ? 'Pause' : 'Start'}
         </button>
         <button 
           onClick={resetTimer}
-          className="flex-1 bg-white/10 text-foreground py-2.5 rounded-2xl text-xs font-bold uppercase tracking-wider hover:bg-white/20 transition-colors"
+          className="flex-1 bg-white/10 text-foreground rounded-2xl font-bold uppercase tracking-wider hover:bg-white/20 transition-colors"
+          style={{ fontSize: '5cqw', padding: '3cqw' }}
         >
           Reset
         </button>

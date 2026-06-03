@@ -22,8 +22,8 @@ export function StudioCanvas({ videoPod, isVideoOff, videoMinimized, onVideoMini
   const [windowBounds, setWindowBounds] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
-    setWindowBounds({ width: window.innerWidth, height: window.innerHeight });
     const handleResize = () => setWindowBounds({ width: window.innerWidth, height: window.innerHeight });
+    handleResize();
     window.addEventListener('resize', handleResize);
     setIsMounted(true);
     return () => window.removeEventListener('resize', handleResize);
@@ -33,15 +33,15 @@ export function StudioCanvas({ videoPod, isVideoOff, videoMinimized, onVideoMini
 
   return (
     <div ref={constraintsRef} className="relative w-full h-full overflow-hidden pointer-events-none z-10">
-      <FloatingBubble id="pomodoro" initialX={windowBounds.width / 2 - 100} initialY={50} constraintsRef={constraintsRef}>
+      <FloatingBubble id="pomodoro" initialX={Math.max(windowBounds.width / 2 - 120, 250)} initialY={40} constraintsRef={constraintsRef}>
         {({ minimized }) => <PomodoroWidget minimized={minimized} />}
       </FloatingBubble>
 
-      <FloatingBubble id="clock" initialX={windowBounds.width - 250} initialY={50} constraintsRef={constraintsRef}>
+      <FloatingBubble id="clock" initialX={Math.max(windowBounds.width - 250, 500)} initialY={40} constraintsRef={constraintsRef}>
         {({ minimized }) => <ClockWidget minimized={minimized} />}
       </FloatingBubble>
 
-      <FloatingBubble id="task" initialX={50} initialY={200} constraintsRef={constraintsRef}>
+      <FloatingBubble id="task" initialX={40} initialY={40} constraintsRef={constraintsRef}>
         {({ minimized }) => <TaskWidget minimized={minimized} />}
       </FloatingBubble>
 

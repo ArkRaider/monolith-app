@@ -7,7 +7,6 @@ export function ClockWidget({ minimized }: { minimized?: boolean }) {
   const [time, setTime] = React.useState<Date | null>(null);
 
   React.useEffect(() => {
-    setTime(new Date());
     const interval = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
@@ -24,9 +23,9 @@ export function ClockWidget({ minimized }: { minimized?: boolean }) {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-w-[150px] w-full h-full">
-      <Clock className="w-6 h-6 text-primary mb-2" />
-      <div className="text-4xl font-bold font-mono text-foreground tracking-widest">
+    <div className="flex flex-col items-center justify-center min-w-[150px] w-full h-full" style={{ containerType: 'inline-size' }}>
+      <Clock className="text-primary mb-2" style={{ width: '12cqw', height: '12cqw' }} />
+      <div className="font-bold font-mono text-foreground tracking-widest" style={{ fontSize: '22cqw' }}>
         {timeString}
       </div>
     </div>

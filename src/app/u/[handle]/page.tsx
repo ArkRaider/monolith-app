@@ -452,7 +452,7 @@ export default function ProfilePage({ params }: { params: Promise<{ handle: stri
     async function loadData() {
       try {
         const profile = await getUserProfile(resolvedParams.handle);
-        if (!profile) {
+        if (!profile || 'error' in profile) {
           setData(null);
           setLoading(false);
           return;
