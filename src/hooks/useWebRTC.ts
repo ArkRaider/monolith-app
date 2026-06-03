@@ -73,10 +73,12 @@ export function useWebRTC(localStream: MediaStream | null) {
         if (videoTrack) videoTransceiver.sender.replaceTrack(videoTrack);
       }
 
+      const remoteStream = new MediaStream();
+
       const peerObj: PeerObj = {
         peerID: socketId,
         pc,
-        stream: null,
+        stream: remoteStream,
         user
       };
 
@@ -94,15 +96,12 @@ export function useWebRTC(localStream: MediaStream | null) {
 
       pc.ontrack = (event) => {
         if (!active) return;
-        const [remoteStream] = event.streams;
         
-        // Only update if we actually got a stream (transceivers without tracks might fire ontrack without streams in some edge cases)
-        if (remoteStream) {
-          peersRef.current = peersRef.current.map(p =>
-            p.peerID === socketId ? { ...p, stream: remoteStream } : p
-          );
-          setPeers([...peersRef.current]);
-        }
+        // Add the track to our manually created remote stream
+        remoteStream.addTrack(event.track);
+        
+        // Force state update to trigger re-renders now that a track is added
+        setPeers([...peersRef.current]);
       };
 
       return pc;
