@@ -69,7 +69,7 @@ export function MinimalRemoteVideoPod({
         ref={videoRef}
         autoPlay 
         playsInline 
-        className={`w-full h-full object-cover block transition-opacity duration-300 ${!stream || stream.getVideoTracks().length === 0 ? 'hidden' : 'block'}`}
+        className={`w-full h-full object-contain aspect-video bg-black/5 block transition-opacity duration-300 ${!stream || stream.getVideoTracks().length === 0 ? 'hidden' : 'block'}`}
       />
       
       {(!stream || stream.getVideoTracks().length === 0) && (

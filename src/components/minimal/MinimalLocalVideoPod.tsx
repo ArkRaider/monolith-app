@@ -42,7 +42,7 @@ export function MinimalLocalVideoPod({ stream, state, onStateChange, isVideoOff,
         autoPlay 
         playsInline 
         muted 
-        className={`w-full h-full object-cover block transition-opacity duration-300 ${isVideoOff ? 'hidden' : 'block'}`}
+        className={`w-full h-full object-contain aspect-video bg-black/5 block transition-opacity duration-300 ${isVideoOff ? 'hidden' : 'block'}`}
       />
       
       {isVideoOff && (

@@ -134,6 +134,15 @@ export function useSignaling(
     };
   }, [roomId, user.id, password]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Heartbeat ──────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isConnected) return;
+    const interval = setInterval(() => {
+      signalingSocket.emit('activity:ping');
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [isConnected]);
+
   // ── Send room chat message ─────────────────────────────────────────────────
   const sendMessage = (text: string) => {
     if (isConnected) {
