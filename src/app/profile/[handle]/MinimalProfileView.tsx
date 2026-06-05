@@ -391,7 +391,7 @@ export function MinimalProfileView({ profile, level, title, studyGrid, isOwner }
           {/* Edit Profile Button (Only for owner) */}
           {isOwner && (
             <motion.div variants={itemVariants} className="mt-8 mb-8 flex justify-center">
-              <Link href="/settings" className={`group relative inline-flex items-center justify-center gap-3 px-8 py-4 rounded-[2rem] overflow-hidden transition-all duration-500 hover:scale-105 shadow-2xl ${isDark ? 'bg-neutral-900/60 backdrop-blur-2xl border-white/20 hover:border-white/40 text-white hover:shadow-[0_0_40px_rgba(255,255,255,0.1)]' : 'bg-white/60 backdrop-blur-2xl border-black/20 hover:border-black/40 text-black hover:shadow-[0_0_40px_rgba(0,0,0,0.1)]'} border`}>
+              <Link href="/settings/minimal" className={`group relative inline-flex items-center justify-center gap-3 px-8 py-4 rounded-[2rem] overflow-hidden transition-all duration-500 hover:scale-105 shadow-2xl ${isDark ? 'bg-neutral-900/60 backdrop-blur-2xl border-white/20 hover:border-white/40 text-white hover:shadow-[0_0_40px_rgba(255,255,255,0.1)]' : 'bg-white/60 backdrop-blur-2xl border-black/20 hover:border-black/40 text-black hover:shadow-[0_0_40px_rgba(0,0,0,0.1)]'} border`}>
                 <Settings size={18} className={`transition-transform duration-500 group-hover:rotate-90`} />
                 <span className="font-mono text-[10px] tracking-widest uppercase font-bold">Edit Profile</span>
               </Link>
