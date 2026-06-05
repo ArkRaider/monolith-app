@@ -91,10 +91,10 @@ export function MinimalLocalVideoPod({ stream, state, onStateChange, isVideoOff,
           {onTogglePin && (
             <button 
               onClick={onTogglePin}
-              className="p-1.5 rounded-full transition-colors text-white/70 hover:text-white hover:bg-white/10"
-              title="Minimize video"
+              className={`p-1.5 rounded-full transition-colors ${isPinned ? 'text-indigo-400 bg-indigo-500/10' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+              title={isPinned ? "Unpin video" : "Pin video"}
             >
-              <Pin size={16} />
+              <Pin size={16} className={isPinned ? 'fill-indigo-400' : ''} />
             </button>
           )}
 

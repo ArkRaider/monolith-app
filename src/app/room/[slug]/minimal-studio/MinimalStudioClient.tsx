@@ -69,29 +69,37 @@ export default function MinimalStudioClient({ slug, initialPwd, roomId, initialI
   const [selectedPeerHandle, setSelectedPeerHandle] = useState<string | null>(null);
 
   const togglePin = (peerId: string) => {
-    if (peerId === 'local') {
-      setLocalState(prev => {
-        if (prev === 'grid') return 'minimized';
-        return 'grid';
-      });
-      return;
-    }
-
     setPinnedPeers(prev => {
-      const isPinned = prev.includes(peerId);
-      const newPinned = isPinned ? prev.filter(id => id !== peerId) : [...prev, peerId];
-      
-      // Auto-minimize self-view and focus on pinned peers if any are pinned
-      if (newPinned.length > 0) {
-        setLocalState('minimized');
-        setShowOnlyPinned(true);
+      const isCurrentlyPinned = prev.includes(peerId);
+      const next = isCurrentlyPinned 
+        ? prev.filter(id => id !== peerId) 
+        : [...prev, peerId];
+
+      // Re-evaluate local state
+      const otherPinned = next.filter(id => id !== 'local');
+      const isLocalPinned = next.includes('local');
+
+      if (otherPinned.length > 0 && !isLocalPinned) {
+        // Others are pinned, but local is not -> Local goes to PIP
+        setLocalState(curr => curr === 'grid' ? 'minimized' : curr);
       } else {
-        // Revert to normal grid when no one is pinned
-        setLocalState('grid');
-        setShowOnlyPinned(false);
+        // No one else is pinned, or local is explicitly pinned -> Local goes to grid
+        setLocalState(curr => curr === 'minimized' ? 'grid' : curr);
       }
-      return newPinned;
+
+      setShowOnlyPinned(next.length > 0);
+
+      return next;
     });
+  };
+
+  const handleRestoreLocal = () => {
+    setPinnedPeers(prev => {
+      const next = prev.includes('local') ? prev : [...prev, 'local'];
+      setShowOnlyPinned(next.length > 0);
+      return next;
+    });
+    setLocalState('grid');
   };
 
   const [isSaved, setIsSaved] = useState(initialIsSaved || false);
@@ -504,7 +512,7 @@ export default function MinimalStudioClient({ slug, initialPwd, roomId, initialI
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
             className="absolute bottom-6 right-6 w-64 h-48 z-50 cursor-pointer active:cursor-grabbing shadow-2xl overflow-hidden rounded-[32px]"
-            onClick={() => setLocalState('grid')}
+            onClick={handleRestoreLocal}
             title="Click to return to grid, drag to move"
           >
             <MinimalLocalVideoPod 

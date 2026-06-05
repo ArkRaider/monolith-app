@@ -3,6 +3,8 @@
 import { MinimalLocalVideoPod } from '@/components/minimal/MinimalLocalVideoPod';
 import { MinimalRemoteVideoPod } from '@/components/minimal/MinimalRemoteVideoPod';
 import { Socket } from 'socket.io-client';
+import { useRef } from 'react';
+import { useOptimalGrid } from '@/hooks/useOptimalGrid';
 
 interface MinimalVideoGridProps {
   cameraError: boolean;
@@ -51,6 +53,9 @@ export function MinimalVideoGrid({
   onViewProfile,
   onSendMessage
 }: MinimalVideoGridProps) {
+  const gridRef = useRef<HTMLDivElement>(null);
+  const { itemWidth, itemHeight } = useOptimalGrid(gridRef, displayItems.length);
+
   return (
     <div className="flex-1 p-4 overflow-y-auto flex items-center justify-center relative">
       {cameraError && (
@@ -60,12 +65,17 @@ export function MinimalVideoGrid({
       )}
 
       <div 
-        className="w-full h-full flex flex-wrap content-start justify-start gap-4 p-2"
+        ref={gridRef}
+        className="w-full h-full flex flex-wrap content-center justify-center gap-4"
       >
         {displayItems.map((item, idx) => {
           if (item.type === 'local') {
             return (
-              <div key="local" className="relative aspect-video w-full sm:w-[calc(50%-1rem)] lg:w-[calc(33.333%-1rem)] max-w-[600px] min-w-[280px]">
+              <div 
+                key="local" 
+                className="relative transition-all duration-300"
+                style={{ width: itemWidth > 0 ? itemWidth : '100%', height: itemHeight > 0 ? itemHeight : '100%' }}
+              >
                 <MinimalLocalVideoPod 
                   stream={localStream} 
                   state={localState} 
@@ -88,7 +98,11 @@ export function MinimalVideoGrid({
           } else {
             const peer = item.peer!;
             return (
-              <div key={peer.peerID} className="relative aspect-video w-full sm:w-[calc(50%-1rem)] lg:w-[calc(33.333%-1rem)] max-w-[600px] min-w-[280px]">
+              <div 
+                key={peer.peerID} 
+                className="relative transition-all duration-300"
+                style={{ width: itemWidth > 0 ? itemWidth : '100%', height: itemHeight > 0 ? itemHeight : '100%' }}
+              >
                 <MinimalRemoteVideoPod 
                   peerId={peer.peerID}
                   stream={peer.stream}
