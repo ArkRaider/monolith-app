@@ -32,12 +32,12 @@ export default function MinimalSettingsClient({ dbUser }: MinimalSettingsClientP
 
   const isDark = theme === 'dark-void' || theme === 'dark' || (theme?.includes('dark') ?? false);
 
-  const containerVariants = {
+  const containerVariants: import('framer-motion').Variants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
   };
 
-  const itemVariants = {
+  const itemVariants: import('framer-motion').Variants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] } }
   };
