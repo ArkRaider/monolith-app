@@ -69,6 +69,14 @@ export default function MinimalStudioClient({ slug, initialPwd, roomId, initialI
   const [selectedPeerHandle, setSelectedPeerHandle] = useState<string | null>(null);
 
   const togglePin = (peerId: string) => {
+    if (peerId === 'local') {
+      setLocalState(prev => {
+        if (prev === 'grid') return 'minimized';
+        return 'grid';
+      });
+      return;
+    }
+
     setPinnedPeers(prev => {
       const isPinned = prev.includes(peerId);
       const newPinned = isPinned ? prev.filter(id => id !== peerId) : [...prev, peerId];
@@ -313,7 +321,7 @@ export default function MinimalStudioClient({ slug, initialPwd, roomId, initialI
   const hasLocalInGrid = localState === 'grid';
   const localOffset = hasLocalInGrid ? 1 : 0;
   
-  let displayItems = [];
+  const displayItems = [];
   if (hasLocalInGrid && currentPage === 1) {
     displayItems.push({ type: 'local' });
     displayItems.push(...visiblePeers.slice(0, itemsPerPage - 1).map(p => ({ type: 'remote', peer: p })));
@@ -374,6 +382,8 @@ export default function MinimalStudioClient({ slug, initialPwd, roomId, initialI
         setTheme={setTheme}
         isPeoplePanelOpen={isPeoplePanelOpen}
         setIsPeoplePanelOpen={setIsPeoplePanelOpen}
+        localState={localState}
+        setLocalState={setLocalState}
       />
 
       <MinimalPeoplePanel

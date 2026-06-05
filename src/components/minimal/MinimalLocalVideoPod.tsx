@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Maximize2, Minimize2, VideoOff, Edit3, Pin, MoreVertical, User, MessageSquare, Camera } from 'lucide-react';
+import { Maximize2, Minimize2, VideoOff, Edit3, Pin, MoreVertical, User, MessageSquare, Camera, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface MinimalLocalVideoPodProps {
@@ -85,13 +85,22 @@ export function MinimalLocalVideoPod({ stream, state, onStateChange, isVideoOff,
 
       {/* Top action buttons */}
       <div className="absolute top-4 right-4 z-20 flex flex-col items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        {state === 'minimized' && (
+          <button 
+            onClick={() => onStateChange('hidden')}
+            className={`p-1.5 rounded-full transition-colors text-white/70 hover:text-white hover:bg-white/10`}
+            title="Hide my video"
+          >
+            <EyeOff size={16} />
+          </button>
+        )}
         {onTogglePin && (
           <button 
             onClick={onTogglePin}
-            className={`p-1.5 rounded-full transition-colors ${isPinned ? 'text-indigo-400 bg-indigo-500/10' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
-            title={isPinned ? "Unpin user" : "Pin user"}
+            className={`p-1.5 rounded-full transition-colors ${state === 'minimized' ? 'text-indigo-400 bg-indigo-500/10' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+            title={state === 'minimized' ? "Show in grid" : "Minimize video"}
           >
-            <Pin size={16} className={isPinned ? 'fill-indigo-400' : ''} />
+            <Pin size={16} className={state === 'minimized' ? 'fill-indigo-400' : ''} />
           </button>
         )}
 

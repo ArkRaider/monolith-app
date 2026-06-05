@@ -9,7 +9,7 @@ import { PrismaClient } from '@prisma/client';
 // Prisma doesn't open more connections than the pooler allows.
 
 declare global {
-  // eslint-disable-next-line no-var
+   
   var __prisma: PrismaClient | undefined;
 }
 
