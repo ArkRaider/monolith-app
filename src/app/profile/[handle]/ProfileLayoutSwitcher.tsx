@@ -9,9 +9,10 @@ interface ProfileLayoutSwitcherProps {
   level: number;
   title: string;
   studyGrid: any;
+  isOwner?: boolean;
 }
 
-export function ProfileLayoutSwitcher({ profile, level, title, studyGrid }: ProfileLayoutSwitcherProps) {
+export function ProfileLayoutSwitcher({ profile, level, title, studyGrid, isOwner }: ProfileLayoutSwitcherProps) {
   const searchParams = useSearchParams();
   const themeParam = searchParams.get('theme');
   
@@ -22,6 +23,7 @@ export function ProfileLayoutSwitcher({ profile, level, title, studyGrid }: Prof
         level={level} 
         title={title} 
         studyGrid={studyGrid} 
+        isOwner={isOwner}
       />
     );
   }
@@ -32,6 +34,7 @@ export function ProfileLayoutSwitcher({ profile, level, title, studyGrid }: Prof
       level={level} 
       title={title} 
       studyGrid={studyGrid} 
+      isOwner={isOwner}
     />
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ExternalLink, MapPin, Clock, Headphones, Monitor, Sparkles, ChevronLeft } from 'lucide-react';
+import { ExternalLink, MapPin, Clock, Headphones, Monitor, Sparkles, ChevronLeft, Settings } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
@@ -35,6 +35,7 @@ interface MinimalProfileViewProps {
   level: number;
   title: string;
   studyGrid: { date: string; minutesStudied: number }[];
+  isOwner?: boolean;
 }
 
 function sanitizeSocialLink(input: string, platform: 'instagram' | 'twitter' | 'github') {
@@ -58,7 +59,7 @@ function sanitizeSocialLink(input: string, platform: 'instagram' | 'twitter' | '
   }
 }
 
-export function MinimalProfileView({ profile, level, title, studyGrid }: MinimalProfileViewProps) {
+export function MinimalProfileView({ profile, level, title, studyGrid, isOwner }: MinimalProfileViewProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [currentTime, setCurrentTime] = useState('');
@@ -386,6 +387,17 @@ export function MinimalProfileView({ profile, level, title, studyGrid }: Minimal
 
             </div>
           </div>
+
+          {/* Edit Profile Button (Only for owner) */}
+          {isOwner && (
+            <motion.div variants={itemVariants} className="mt-8 mb-8 flex justify-center">
+              <Link href="/settings" className={`group relative inline-flex items-center justify-center gap-3 px-8 py-4 rounded-[2rem] overflow-hidden transition-all duration-500 hover:scale-105 shadow-2xl ${isDark ? 'bg-neutral-900/60 backdrop-blur-2xl border-white/20 hover:border-white/40 text-white hover:shadow-[0_0_40px_rgba(255,255,255,0.1)]' : 'bg-white/60 backdrop-blur-2xl border-black/20 hover:border-black/40 text-black hover:shadow-[0_0_40px_rgba(0,0,0,0.1)]'} border`}>
+                <Settings size={18} className={`transition-transform duration-500 group-hover:rotate-90`} />
+                <span className="font-mono text-[10px] tracking-widest uppercase font-bold">Edit Profile</span>
+              </Link>
+            </motion.div>
+          )}
+
         </motion.div>
       </div>
     </div>

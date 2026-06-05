@@ -2,8 +2,8 @@ import { getUserProfile } from '@/app/actions/user-actions';
 import { getUserStudyGrid } from '@/app/actions/gamification-actions';
 import { calculateLevel, getUserTitle } from '@/lib/title-calculator';
 import { notFound } from 'next/navigation';
+import { currentUser } from '@clerk/nextjs/server';
 import { ProfileLayoutSwitcher } from './ProfileLayoutSwitcher';
-
 export const dynamic = 'force-dynamic';
 
 interface PageProps {
@@ -24,12 +24,16 @@ export default async function ProfilePage({ params }: PageProps) {
   const { level } = calculateLevel(profile.xp);
   const title = getUserTitle(totalMinutes);
 
+  const user = await currentUser();
+  const isOwner = !!user && (profile.id === user.id);
+
   return (
     <ProfileLayoutSwitcher 
       profile={profile} 
       level={level} 
       title={title} 
       studyGrid={studyGrid} 
+      isOwner={isOwner}
     />
   );
 }
