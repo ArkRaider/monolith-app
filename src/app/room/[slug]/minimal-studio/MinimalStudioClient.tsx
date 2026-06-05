@@ -11,9 +11,10 @@ import { MinimalRemoteVideoPod } from '@/components/minimal/MinimalRemoteVideoPo
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTheme } from 'next-themes';
 import { Home, Users, MessageSquare, Shield, Settings, Bell, Search, Clock, LogOut, ChevronLeft, ChevronRight, Pin, Heart, Video, Edit3, User, Flame, Moon, Sun, ChevronDown } from 'lucide-react';
-import { getRoomLeaderboard } from '@/app/actions/gamification-actions';
+import { getRoomLeaderboard, commitFocusSession } from '@/app/actions/gamification-actions';
 import { useInbox } from '@/context/InboxContext';
 import { isRoomAdmin } from '@/lib/roles';
+import { SIGNALING_URL } from '@/lib/socketClient';
 import InteractiveCanvas from '@/components/minimal/InteractiveCanvas';
 import CursorGlow from '@/components/minimal/CursorGlow';
 import { NotificationBell } from '@/components/room/widgets/NotificationBell';
@@ -23,6 +24,7 @@ import { MinimalSidebar } from './components/MinimalSidebar';
 import { MinimalPeoplePanel } from './components/MinimalPeoplePanel';
 import { MinimalHeader } from './components/MinimalHeader';
 import { MinimalVideoGrid } from './components/MinimalVideoGrid';
+import { MinimalPeerProfileModal } from '@/components/minimal/MinimalPeerProfileModal';
 
 const FocusClock = () => {
   const [time, setTime] = useState(new Date());
@@ -62,6 +64,27 @@ export default function MinimalStudioClient({ slug, initialPwd, roomId, initialI
   const [cameraError, setCameraError] = useState(false);
   const [isFocusPlus, setIsFocusPlus] = useState(false);
   const [isPeoplePanelOpen, setIsPeoplePanelOpen] = useState(false);
+  const [pinnedPeers, setPinnedPeers] = useState<string[]>([]);
+  const [showOnlyPinned, setShowOnlyPinned] = useState(false);
+  const [selectedPeerHandle, setSelectedPeerHandle] = useState<string | null>(null);
+
+  const togglePin = (peerId: string) => {
+    setPinnedPeers(prev => {
+      const isPinned = prev.includes(peerId);
+      const newPinned = isPinned ? prev.filter(id => id !== peerId) : [...prev, peerId];
+      
+      // Auto-minimize self-view and focus on pinned peers if any are pinned
+      if (newPinned.length > 0) {
+        setLocalState('minimized');
+        setShowOnlyPinned(true);
+      } else {
+        // Revert to normal grid when no one is pinned
+        setLocalState('grid');
+        setShowOnlyPinned(false);
+      }
+      return newPinned;
+    });
+  };
 
   const [isSaved, setIsSaved] = useState(initialIsSaved || false);
   const router = useRouter();
@@ -90,6 +113,17 @@ export default function MinimalStudioClient({ slug, initialPwd, roomId, initialI
     }
   }, [slug]);
 
+  // Time in Flow Tracking
+  useEffect(() => {
+    if (!activeUserId || activeUserId === 'guest_user') return;
+    
+    const interval = setInterval(() => {
+      commitFocusSession(activeUserId, 1).catch(err => console.error('Failed to commit focus session', err));
+    }, 60000);
+    
+    return () => clearInterval(interval);
+  }, [activeUserId]);
+
   useEffect(() => {
     if (!socket) return;
     const interval = setInterval(() => {
@@ -108,6 +142,25 @@ export default function MinimalStudioClient({ slug, initialPwd, roomId, initialI
       socket.off('kicked_from_room', handleKicked);
     };
   }, [socket, router]);
+
+  useEffect(() => {
+    if (!slug || !activeUserId) return;
+    
+    const sendBeaconTeardown = () => {
+      if (activeUserId !== 'guest_user' && socket?.id) {
+        const payload = JSON.stringify({ roomId: slug, userId: activeUserId, socketId: socket.id });
+        navigator.sendBeacon(`${SIGNALING_URL}/api/rooms/leave`, payload);
+      }
+    };
+    
+    // Listen to pagehide only. visibilitychange "hidden" fires just from switching tabs,
+    // which was incorrectly triggering the beacon and killing other identical sessions!
+    window.addEventListener('pagehide', sendBeaconTeardown);
+
+    return () => {
+      window.removeEventListener('pagehide', sendBeaconTeardown);
+    };
+  }, [slug, activeUserId, socket]);
 
   useEffect(() => {
     if (!initCam && !initMic) return;
@@ -246,20 +299,27 @@ export default function MinimalStudioClient({ slug, initialPwd, roomId, initialI
     }
   };
 
-  const totalPages = Math.ceil((peers.length + (localState === 'grid' ? 1 : 0)) / itemsPerPage) || 1;
+  // We no longer deduplicate by user ID so that you can join from multiple browsers and see all instances
+  const uniquePeers = peers;
+
+  // Calculate which peers to show
+  const visiblePeers = showOnlyPinned 
+    ? uniquePeers.filter(p => pinnedPeers.includes(p.peerID))
+    : uniquePeers;
+
+  const totalPages = Math.ceil((visiblePeers.length + (localState === 'grid' ? 1 : 0)) / itemsPerPage) || 1;
   const startIndex = (currentPage - 1) * itemsPerPage;
   // If local is in grid, it takes index 0.
   const hasLocalInGrid = localState === 'grid';
   const localOffset = hasLocalInGrid ? 1 : 0;
   
-  // Calculate which peers to show
   let displayItems = [];
   if (hasLocalInGrid && currentPage === 1) {
     displayItems.push({ type: 'local' });
-    displayItems.push(...peers.slice(0, itemsPerPage - 1).map(p => ({ type: 'remote', peer: p })));
+    displayItems.push(...visiblePeers.slice(0, itemsPerPage - 1).map(p => ({ type: 'remote', peer: p })));
   } else {
     const peerStart = startIndex - localOffset;
-    displayItems.push(...peers.slice(peerStart, peerStart + itemsPerPage).map(p => ({ type: 'remote', peer: p })));
+    displayItems.push(...visiblePeers.slice(peerStart, peerStart + itemsPerPage).map(p => ({ type: 'remote', peer: p })));
   }
 
   useEffect(() => {
@@ -319,7 +379,7 @@ export default function MinimalStudioClient({ slug, initialPwd, roomId, initialI
       <MinimalPeoplePanel
         isPeoplePanelOpen={isPeoplePanelOpen}
         isDark={isDark}
-        peers={peers}
+        peers={uniquePeers}
         avatarUrl={avatarUrl}
         displayName={displayName}
         user={user}
@@ -338,7 +398,7 @@ export default function MinimalStudioClient({ slug, initialPwd, roomId, initialI
         isAdmin={isAdmin}
         socket={socket}
         slug={slug}
-        peers={peers}
+        peers={uniquePeers}
         userFirstName={user?.firstName || undefined}
         displayName={displayName}
         avatarUrl={avatarUrl}
@@ -354,53 +414,75 @@ export default function MinimalStudioClient({ slug, initialPwd, roomId, initialI
         currentPage={currentPage}
         setCurrentPage={setCurrentPage}
         totalPages={totalPages}
+        showOnlyPinned={showOnlyPinned}
+        setShowOnlyPinned={setShowOnlyPinned}
+        pinnedCount={pinnedPeers.length}
       />
+
+      {/* Status Input Popover (Outside main to escape z-index constraints) */}
+      <AnimatePresence>
+        {showStatusInput && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: -10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -10 }}
+            transition={{ type: "spring", stiffness: 350, damping: 25 }}
+            className={`absolute top-[8.5rem] left-[260px] z-[100] px-6 py-3 rounded-full shadow-2xl transition-colors ${isDark ? 'bg-black shadow-black/80' : 'bg-[#f5f5f4] shadow-black/10'}`}
+          >
+            <input
+              autoFocus
+              type="text"
+              placeholder="What are you working on?"
+              value={statusInput}
+              onChange={e => setStatusInput(e.target.value)}
+              onKeyDown={handleStatusSubmit}
+              className="bg-transparent text-sm font-medium outline-none w-[400px] max-w-[60vw] placeholder-opacity-50"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Main Content Area ── */}
       <main className="absolute inset-0 pt-[156px] pl-[104px] pr-6 pb-6 flex flex-col z-10">
         
-        {/* Status Input Popover */}
-        <AnimatePresence>
-          {showStatusInput && (
-            <motion.div 
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className={`absolute top-32 left-48 z-50 p-2 rounded-xl border shadow-xl ${isDark ? 'bg-[#2a2d36] border-white/10' : 'bg-white border-black/10'}`}
-            >
-              <input
-                autoFocus
-                type="text"
-                placeholder="What are you working on?"
-                value={statusInput}
-                onChange={e => setStatusInput(e.target.value)}
-                onKeyDown={handleStatusSubmit}
-                className="bg-transparent text-sm outline-none w-64 px-2 py-1"
-                maxLength={40}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
 
-        <MinimalVideoGrid
-          cameraError={cameraError}
-          displayItems={displayItems}
-          localStream={localStream}
-          localState={localState}
-          setLocalState={setLocalState}
-          isVideoOff={isVideoOff}
-          displayName={displayName}
-          avatarUrl={avatarUrl}
-          isDark={isDark}
-          peerStatuses={peerStatuses}
-          socket={socket}
-          cameras={cameras}
-          selectedCamera={selectedCamera}
-          switchCamera={switchCamera}
-          isAdmin={isAdmin}
-          handleKick={handleKick}
-        />
+        <div className="flex-1 min-w-0 relative h-full flex flex-col">
+          <MinimalVideoGrid
+            cameraError={cameraError}
+            displayItems={displayItems}
+            localStream={localStream}
+            localState={localState}
+            setLocalState={setLocalState}
+            isVideoOff={isVideoOff}
+            displayName={displayName}
+            localHandle={realHandle}
+            avatarUrl={avatarUrl}
+            isDark={isDark}
+            peerStatuses={peerStatuses}
+            socket={socket}
+            cameras={cameras}
+            selectedCamera={selectedCamera}
+            switchCamera={switchCamera}
+            isAdmin={isAdmin}
+            handleKick={handleKick}
+            pinnedPeers={pinnedPeers}
+            togglePin={togglePin}
+            onViewProfile={(handle) => setSelectedPeerHandle(handle)}
+            onSendMessage={(handle, id) => {
+              window.dispatchEvent(
+                new CustomEvent('monolith:open-dm', { detail: { handle, userId: id } })
+              );
+            }}
+          />
+        </div>
       </main>
+
+      <MinimalPeerProfileModal
+        isOpen={!!selectedPeerHandle}
+        onClose={() => setSelectedPeerHandle(null)}
+        handle={selectedPeerHandle || ''}
+        isDark={isDark}
+      />
 
       {/* Local Minimized Pip */}
       <AnimatePresence>

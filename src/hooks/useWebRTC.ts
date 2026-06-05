@@ -6,6 +6,7 @@ export interface PeerObj {
   pc: RTCPeerConnection;
   stream: MediaStream | null;
   user: { handle: string; id: string; initials?: string };
+  isDying?: boolean;
 }
 
 export function useWebRTC(localStream: MediaStream | null) {
@@ -173,14 +174,46 @@ export function useWebRTC(localStream: MediaStream | null) {
 
     socket.on('peer:left', (socketId: string) => {
       if (!active) return;
-      const peerObj = peersRef.current.find(p => p.peerID === socketId);
-      if (peerObj) {
-        peerObj.pc.getTransceivers().forEach(t => t.stop?.());
-        peerObj.pc.close();
+      const peerIdx = peersRef.current.findIndex(p => p.peerID === socketId);
+      if (peerIdx > -1) {
+        // Set tombstone state
+        peersRef.current[peerIdx].isDying = true;
+        setPeers([...peersRef.current]);
+        
+        setTimeout(() => {
+          if (!active) return;
+          const currentPeerObj = peersRef.current.find(p => p.peerID === socketId);
+          if (currentPeerObj) {
+            currentPeerObj.pc.getTransceivers().forEach(t => t.stop?.());
+            currentPeerObj.pc.close();
+            peersRef.current = peersRef.current.filter(p => p.peerID !== socketId);
+            setPeers([...peersRef.current]);
+            delete pcMeta[socketId];
+          }
+        }, 5000);
       }
-      peersRef.current = peersRef.current.filter(p => p.peerID !== socketId);
+    });
+
+    socket.on('user-force-disconnected', (userId: string) => {
+      if (!active) return;
+      peersRef.current.forEach((peer, idx) => {
+        if (peer.user.id === userId) {
+          peersRef.current[idx].isDying = true;
+          
+          setTimeout(() => {
+            if (!active) return;
+            const currentPeerObj = peersRef.current.find(p => p.peerID === peer.peerID);
+            if (currentPeerObj) {
+              currentPeerObj.pc.getTransceivers().forEach(t => t.stop?.());
+              currentPeerObj.pc.close();
+              peersRef.current = peersRef.current.filter(p => p.peerID !== peer.peerID);
+              setPeers([...peersRef.current]);
+              delete pcMeta[peer.peerID];
+            }
+          }, 5000);
+        }
+      });
       setPeers([...peersRef.current]);
-      delete pcMeta[socketId];
     });
 
     return () => {
@@ -189,6 +222,7 @@ export function useWebRTC(localStream: MediaStream | null) {
       socket.off('peer:joined');
       socket.off('peer:signal');
       socket.off('peer:left');
+      socket.off('user-force-disconnected');
       peersRef.current.forEach(p => p.pc.close());
       peersRef.current = [];
       setPeers([]);

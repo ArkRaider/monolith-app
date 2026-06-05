@@ -12,6 +12,7 @@ interface MinimalVideoGridProps {
   setLocalState: (state: 'grid' | 'minimized' | 'hidden') => void;
   isVideoOff: boolean;
   displayName: string;
+  localHandle: string;
   avatarUrl: string | null;
   isDark: boolean;
   peerStatuses: Record<string, string>;
@@ -21,6 +22,10 @@ interface MinimalVideoGridProps {
   switchCamera: (deviceId: string) => void;
   isAdmin: boolean;
   handleKick: (socketId: string, userId?: string) => void;
+  pinnedPeers?: string[];
+  togglePin?: (peerId: string) => void;
+  onViewProfile?: (handle: string) => void;
+  onSendMessage?: (handle: string, userId?: string) => void;
 }
 
 export function MinimalVideoGrid({
@@ -31,6 +36,7 @@ export function MinimalVideoGrid({
   setLocalState,
   isVideoOff,
   displayName,
+  localHandle,
   avatarUrl,
   isDark,
   peerStatuses,
@@ -39,7 +45,11 @@ export function MinimalVideoGrid({
   selectedCamera,
   switchCamera,
   isAdmin,
-  handleKick
+  handleKick,
+  pinnedPeers,
+  togglePin,
+  onViewProfile,
+  onSendMessage
 }: MinimalVideoGridProps) {
   return (
     <div className="flex-1 p-4 overflow-y-auto flex items-center justify-center relative">
@@ -50,12 +60,12 @@ export function MinimalVideoGrid({
       )}
 
       <div 
-        className="w-full h-full flex flex-wrap content-center justify-center gap-4 p-2"
+        className="w-full h-full flex flex-wrap content-start justify-start gap-4 p-2"
       >
         {displayItems.map((item, idx) => {
           if (item.type === 'local') {
             return (
-              <div key="local" className="relative aspect-video flex-grow basis-[300px] max-w-[800px] min-w-[280px]">
+              <div key="local" className="relative aspect-video w-full sm:w-[calc(50%-1rem)] lg:w-[calc(33.333%-1rem)] max-w-[600px] min-w-[280px]">
                 <MinimalLocalVideoPod 
                   stream={localStream} 
                   state={localState} 
@@ -68,13 +78,17 @@ export function MinimalVideoGrid({
                   cameras={cameras}
                   selectedCamera={selectedCamera}
                   onCameraSwitch={switchCamera}
+                  isPinned={pinnedPeers?.includes('local')}
+                  onTogglePin={() => togglePin?.('local')}
+                  onSendMessage={() => onSendMessage?.(localHandle, socket?.id || 'local')}
+                  onViewProfile={() => onViewProfile?.(localHandle)}
                 />
               </div>
             );
           } else {
             const peer = item.peer!;
             return (
-              <div key={peer.peerID} className="relative aspect-video flex-grow basis-[300px] max-w-[800px] min-w-[280px]">
+              <div key={peer.peerID} className="relative aspect-video w-full sm:w-[calc(50%-1rem)] lg:w-[calc(33.333%-1rem)] max-w-[600px] min-w-[280px]">
                 <MinimalRemoteVideoPod 
                   peerId={peer.peerID}
                   stream={peer.stream}
@@ -84,6 +98,11 @@ export function MinimalVideoGrid({
                   onKick={() => handleKick(peer.peerID, peer.user?.id)}
                   isDark={isDark}
                   status={peerStatuses[peer.peerID]}
+                  isPinned={pinnedPeers?.includes(peer.peerID)}
+                  isDying={peer.isDying}
+                  onTogglePin={() => togglePin?.(peer.peerID)}
+                  onViewProfile={() => onViewProfile?.(peer.user?.handle || 'Unknown')}
+                  onSendMessage={() => onSendMessage?.(peer.user?.handle || 'Unknown', peer.user?.id)}
                 />
               </div>
             );

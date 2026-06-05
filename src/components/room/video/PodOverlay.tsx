@@ -224,8 +224,8 @@ export function PodOverlay({
                           Friends ✓
                         </button>
                       )}
-                      <Link
-                        href={`/u/${profile.handle}`}
+                      <a
+                        href={`/profile/${profile.handle}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={() => handleOpenChange(false)}
@@ -233,7 +233,7 @@ export function PodOverlay({
                         title="View Full Profile"
                       >
                         <ExternalLink size={12} />
-                      </Link>
+                      </a>
                     </div>
                   </div>
                 ) : (

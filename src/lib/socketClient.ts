@@ -14,7 +14,7 @@
  */
 import { io, Socket } from 'socket.io-client';
 
-const SIGNALING_URL = process.env.NEXT_PUBLIC_SIGNALING_URL || 'https://monolith-signaling-server.onrender.com';
+export const SIGNALING_URL = process.env.NEXT_PUBLIC_SIGNALING_URL || 'https://monolith-signaling-server.onrender.com';
 
 // The singleton — created exactly once when this module is first imported.
 // Subsequent imports return the cached module, not a new socket.

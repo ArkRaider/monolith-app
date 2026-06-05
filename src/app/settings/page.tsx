@@ -2,6 +2,7 @@ import { currentUser } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation';
 import { updateProfile } from '@/app/actions/user-actions';
+import { User } from 'lucide-react';
 
 export default async function SettingsPage() {
   const clerkUser = await currentUser();
@@ -19,7 +20,20 @@ export default async function SettingsPage() {
 
   return (
     <div className="w-full max-w-4xl mt-12 mx-auto pb-24">
-      <h1 className="text-4xl font-[family-name:var(--font-primary)] font-black tracking-tighter uppercase mb-2 text-foreground">Identity Terminal</h1>
+      <div className="flex items-center justify-between mb-2">
+        <h1 className="text-4xl font-[family-name:var(--font-primary)] font-black tracking-tighter uppercase text-foreground">Identity Terminal</h1>
+        {dbUser.handle && (
+          <a 
+            href={`/profile/${dbUser.handle}`} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 border border-border px-4 py-2 hover:bg-surface-high transition-colors text-xs font-[family-name:var(--font-primary)] font-bold uppercase tracking-wider"
+          >
+            <User size={14} className="text-secondary" />
+            View Profile
+          </a>
+        )}
+      </div>
       <p className="text-secondary font-[family-name:var(--font-primary)] text-sm mb-12 uppercase tracking-widest border-b-2 border-border pb-4">
         Configure your social presence and state matrix.
       </p>
@@ -60,8 +74,35 @@ export default async function SettingsPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           
-          {/* Status & Bio */}
+          {/* Core Identity & Logistics */}
           <div className="space-y-8">
+            <div className="border-[length:var(--border-weight)] border-border bg-surface p-6 shadow-[var(--ui-shadow)]">
+              <label className="font-[family-name:var(--font-primary)] text-xs uppercase tracking-widest text-primary font-bold block mb-4 border-b-2 border-border pb-2">Core Identity & Logistics</label>
+              <div className="space-y-6">
+                <div>
+                  <label className="font-[family-name:var(--font-primary)] text-[10px] uppercase tracking-widest text-secondary font-bold block mb-2">Location</label>
+                  <input 
+                    type="text" 
+                    name="location"
+                    defaultValue={dbUser.location || ''} 
+                    placeholder="City, Country"
+                    className="w-full bg-background border-[length:var(--border-weight)] border-border p-3 font-[family-name:var(--font-primary)] text-sm focus:border-primary focus:outline-none transition-colors text-foreground"
+                  />
+                </div>
+                <div>
+                  <label className="font-[family-name:var(--font-primary)] text-[10px] uppercase tracking-widest text-secondary font-bold block mb-2">Timezone</label>
+                  <input 
+                    type="text" 
+                    name="timezone"
+                    defaultValue={dbUser.timezone || ''} 
+                    placeholder="e.g. UTC-5, EST"
+                    className="w-full bg-background border-[length:var(--border-weight)] border-border p-3 font-[family-name:var(--font-primary)] text-sm focus:border-primary focus:outline-none transition-colors text-foreground"
+                  />
+                </div>
+              </div>
+            </div>
+
+          {/* Status & Bio */}
             <div className="border-[length:var(--border-weight)] border-border bg-surface p-6 shadow-[var(--ui-shadow)]">
               <label className="font-[family-name:var(--font-primary)] text-xs uppercase tracking-widest text-primary font-bold block mb-4 border-b-2 border-border pb-2">Status Matrix</label>
               
@@ -75,6 +116,40 @@ export default async function SettingsPage() {
                     placeholder="e.g. Deep Study Mode"
                     className="w-full bg-background border-[length:var(--border-weight)] border-border p-3 font-[family-name:var(--font-primary)] text-sm focus:border-primary focus:outline-none transition-colors text-foreground"
                   />
+                </div>
+
+                <div>
+                  <label className="font-[family-name:var(--font-primary)] text-[10px] uppercase tracking-widest text-secondary font-bold block mb-2">What I'm Building</label>
+                  <input 
+                    type="text" 
+                    name="whatImBuilding"
+                    defaultValue={dbUser.whatImBuilding || ''} 
+                    placeholder="e.g. AI Startup, Thesis"
+                    className="w-full bg-background border-[length:var(--border-weight)] border-border p-3 font-[family-name:var(--font-primary)] text-sm focus:border-primary focus:outline-none transition-colors text-foreground"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="font-[family-name:var(--font-primary)] text-[10px] uppercase tracking-widest text-secondary font-bold block mb-2">Current Mood</label>
+                    <input 
+                      type="text" 
+                      name="currentMood"
+                      defaultValue={dbUser.currentMood || ''} 
+                      placeholder="e.g. Locked In 🔒"
+                      className="w-full bg-background border-[length:var(--border-weight)] border-border p-3 font-[family-name:var(--font-primary)] text-sm focus:border-primary focus:outline-none transition-colors text-foreground"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-[family-name:var(--font-primary)] text-[10px] uppercase tracking-widest text-secondary font-bold block mb-2">Favorite Music</label>
+                    <input 
+                      type="text" 
+                      name="favoriteMusic"
+                      defaultValue={dbUser.favoriteMusic || ''} 
+                      placeholder="e.g. Synthwave"
+                      className="w-full bg-background border-[length:var(--border-weight)] border-border p-3 font-[family-name:var(--font-primary)] text-sm focus:border-primary focus:outline-none transition-colors text-foreground"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -113,6 +188,28 @@ export default async function SettingsPage() {
                     defaultValue={dbUser.activeGoals?.join(', ') || ''} 
                     rows={3}
                     placeholder="Finish thesis, Build app..."
+                    className="w-full bg-background border-[length:var(--border-weight)] border-border p-3 font-[family-name:var(--font-primary)] text-sm focus:border-primary focus:outline-none transition-colors text-foreground"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-[family-name:var(--font-primary)] text-[10px] uppercase tracking-widest text-secondary font-bold block mb-2">Deep Work Hours</label>
+                  <input 
+                    type="text" 
+                    name="deepWorkHours"
+                    defaultValue={dbUser.deepWorkHours || ''} 
+                    placeholder="e.g. 10 PM - 2 AM"
+                    className="w-full bg-background border-[length:var(--border-weight)] border-border p-3 font-[family-name:var(--font-primary)] text-sm focus:border-primary focus:outline-none transition-colors text-foreground"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-[family-name:var(--font-primary)] text-[10px] uppercase tracking-widest text-secondary font-bold block mb-2">Setup Details</label>
+                  <textarea 
+                    name="setupDetails"
+                    defaultValue={dbUser.setupDetails || ''} 
+                    rows={2}
+                    placeholder="MacBook Pro, Ultrawide, Keychron..."
                     className="w-full bg-background border-[length:var(--border-weight)] border-border p-3 font-[family-name:var(--font-primary)] text-sm focus:border-primary focus:outline-none transition-colors text-foreground"
                   />
                 </div>

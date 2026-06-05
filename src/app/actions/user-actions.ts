@@ -42,6 +42,13 @@ export async function updateProfile(formData: FormData) {
     const github = formData.get('github') as string | null;
     const bannerUrl = formData.get('bannerUrl') as string | null;
     const currentGrind = formData.get('currentGrind') as string | null;
+    const whatImBuilding = formData.get('whatImBuilding') as string | null;
+    const location = formData.get('location') as string | null;
+    const timezone = formData.get('timezone') as string | null;
+    const currentMood = formData.get('currentMood') as string | null;
+    const favoriteMusic = formData.get('favoriteMusic') as string | null;
+    const deepWorkHours = formData.get('deepWorkHours') as string | null;
+    const setupDetails = formData.get('setupDetails') as string | null;
 
     const parseArray = (input: string | null) => {
       if (!input) return [];
@@ -50,6 +57,21 @@ export async function updateProfile(formData: FormData) {
         .filter(Boolean)
         .map((item) => item.trim());
     };
+
+    let customLinksArray: string[] = [];
+    const customLinksData = formData.get('customLinks') as string | null;
+    if (customLinksData) {
+      try {
+        const parsed = JSON.parse(customLinksData);
+        if (Array.isArray(parsed)) {
+          customLinksArray = parsed;
+        } else {
+          customLinksArray = parseArray(customLinksData);
+        }
+      } catch {
+        customLinksArray = parseArray(customLinksData);
+      }
+    }
 
     await prisma.user.update({
       where: { id: clerkUser.id },
@@ -61,12 +83,20 @@ export async function updateProfile(formData: FormData) {
         github,
         bannerUrl,
         currentGrind,
+        whatImBuilding,
+        location,
+        timezone,
+        currentMood,
+        favoriteMusic,
+        deepWorkHours,
+        setupDetails,
         programmingTools: parseArray(
           formData.get('programmingTools') as string | null
         ),
         activeGoals: parseArray(formData.get('activeGoals') as string | null),
-        customLinks: parseArray(formData.get('customLinks') as string | null),
+        customLinks: customLinksArray,
         updatedAt: new Date(),
+        onboardingCompleted: true,
       },
     });
 
@@ -118,6 +148,25 @@ export async function getUserProfile(handle: string) {
   } catch (error) {
     console.error('[user-actions] getUserProfile error:', error);
     return { error: 'Failed to get user profile' };
+  }
+}
+
+export async function completeOnboarding(formData: FormData) {
+  try {
+    const clerkUser = await currentUser();
+    if (!clerkUser) return { error: 'Unauthorized' };
+
+    await updateProfile(formData);
+
+    await prisma.user.update({
+      where: { id: clerkUser.id },
+      data: { onboardingCompleted: true },
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('[user-actions] completeOnboarding error:', error);
+    return { error: 'Failed to complete onboarding' };
   }
 }
 
@@ -174,11 +223,19 @@ export async function getMyProfile() {
         github: true,
         bannerUrl: true,
         currentGrind: true,
+        whatImBuilding: true,
+        location: true,
+        timezone: true,
+        currentMood: true,
+        favoriteMusic: true,
+        deepWorkHours: true,
+        setupDetails: true,
         programmingTools: true,
         activeGoals: true,
         customLinks: true,
         lastActive: true,
         xp: true,
+        onboardingCompleted: true,
       },
     });
     return { profile: dbUser };

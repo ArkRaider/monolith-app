@@ -1,7 +1,7 @@
 'use client';
 
 import { Dispatch, SetStateAction } from 'react';
-import { Search, MessageSquare, Clock, Video, Edit3, ChevronDown, ChevronLeft, ChevronRight, Users } from 'lucide-react';
+import { Search, MessageSquare, Clock, Video, Edit3, ChevronDown, ChevronLeft, ChevronRight, Users, Pin } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { NotificationBell } from '@/components/room/widgets/NotificationBell';
 import { RoomAdminSettings } from '@/components/room/widgets/RoomAdminSettings';
@@ -32,6 +32,9 @@ interface MinimalHeaderProps {
   currentPage: number;
   setCurrentPage: Dispatch<SetStateAction<number>>;
   totalPages: number;
+  showOnlyPinned?: boolean;
+  setShowOnlyPinned?: Dispatch<SetStateAction<boolean>>;
+  pinnedCount?: number;
 }
 
 export function MinimalHeader({
@@ -58,7 +61,10 @@ export function MinimalHeader({
   setShowStatusInput,
   currentPage,
   setCurrentPage,
-  totalPages
+  totalPages,
+  showOnlyPinned,
+  setShowOnlyPinned,
+  pinnedCount
 }: MinimalHeaderProps) {
   const borderColor = isDark ? 'border-white/5' : 'border-black/5';
 
@@ -125,14 +131,18 @@ export function MinimalHeader({
               {isCameraDropdownOpen && (
                 <motion.div 
                   initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}
-                  className={`absolute top-full left-0 mt-2 w-48 rounded-lg shadow-xl border z-50 py-1 ${isDark ? 'bg-[#2a2d36] border-white/10' : 'bg-white border-black/10'}`}
+                  className={`absolute top-full left-0 mt-2 min-w-[200px] p-[5px] rounded-[10px] border backdrop-blur-[24px] shadow-2xl z-50 flex flex-col gap-[2px] ${isDark ? 'bg-[#28282b]/90 border-white/10 shadow-black/50' : 'bg-white/90 border-black/10 shadow-black/10'}`}
                 >
-                  {cameras.length === 0 && <div className="px-3 py-2 text-xs opacity-50">No cameras found</div>}
+                  {cameras.length === 0 && <div className="px-2 py-2 text-[13px] opacity-50 text-center">No cameras found</div>}
                   {cameras.map(cam => (
                     <button 
                       key={cam.deviceId}
                       onClick={() => { switchCamera(cam.deviceId); setIsCameraDropdownOpen(false); }}
-                      className={`w-full text-left px-3 py-2 text-xs truncate hover:bg-black/5 ${selectedCamera === cam.deviceId ? 'opacity-100 font-semibold bg-white/10' : 'opacity-70'}`}
+                      className={`w-full text-left px-2 py-[5px] text-[13px] font-medium rounded-[5px] truncate transition-colors ${
+                        selectedCamera === cam.deviceId 
+                          ? (isDark ? 'bg-white/10 text-white' : 'bg-black/5 text-black')
+                          : (isDark ? 'text-[#e5e5e5] hover:bg-[#0058d0] hover:text-white' : 'text-[#2b2b2b] hover:bg-[#0058d0] hover:text-white')
+                      }`}
                     >
                       {cam.label || `Camera ${cam.deviceId.slice(0,5)}`}
                     </button>
@@ -159,9 +169,18 @@ export function MinimalHeader({
               </button>
             </div>
           )}
-          
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${isDark ? 'bg-white/10' : 'bg-black/5'}`}>
-            <Users size={12} /> {peers.length + 1}
+          <div className="flex items-center gap-2">
+            {pinnedCount !== undefined && pinnedCount > 0 && (
+              <button 
+                onClick={() => setShowOnlyPinned?.(!showOnlyPinned)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${showOnlyPinned ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-black/5 hover:bg-black/10'}`}
+              >
+                <Pin size={12} className={showOnlyPinned ? 'fill-indigo-400' : ''} /> {showOnlyPinned ? 'Pinned only' : 'Show pinned'}
+              </button>
+            )}
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${isDark ? 'bg-white/10' : 'bg-black/5'}`}>
+              <Users size={12} /> {peers.length + 1}
+            </div>
           </div>
         </div>
       </div>

@@ -86,6 +86,18 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   // Cleanup on unmount
   useEffect(() => () => clearTimers(), [clearTimers]);
 
+  // Listen to monolith-toast custom event
+  useEffect(() => {
+    const handleMonolithToast = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail && customEvent.detail.message) {
+        notify(customEvent.detail.message, customEvent.detail.sender);
+      }
+    };
+    window.addEventListener('monolith-toast', handleMonolithToast);
+    return () => window.removeEventListener('monolith-toast', handleMonolithToast);
+  }, [notify]);
+
   return (
     <NotificationContext.Provider value={{ notify }}>
       {children}

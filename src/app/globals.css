@@ -228,22 +228,22 @@ textarea {
   outline: none;
 }
 
-/* --- Custom Minimalist Scrollbar --- */
-::-webkit-scrollbar {
+/* --- Custom Minimalist Scrollbar Utility --- */
+.minimal-scrollbar::-webkit-scrollbar {
   width: 4px;
   height: 4px;
 }
 
-::-webkit-scrollbar-track {
+.minimal-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
 
-::-webkit-scrollbar-thumb {
+.minimal-scrollbar::-webkit-scrollbar-thumb {
   background: var(--color-primary);
-  border-radius: 0;
+  border-radius: 4px;
 }
 
-::-webkit-scrollbar-corner {
+.minimal-scrollbar::-webkit-scrollbar-corner {
   background: transparent;
 }
 

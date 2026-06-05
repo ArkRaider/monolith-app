@@ -180,7 +180,7 @@ function ActivityRow({ user }: { user: RecentUser }) {
 
             {/* View Profile */}
             <Link
-              href={`/u/${user.handle}`}
+              href={`/profile/${user.handle}`}
               onClick={() => setMenuOpen(false)}
               className="w-full flex items-center gap-3 px-4 py-3 text-foreground hover:bg-surface-high transition-colors text-xs font-[family-name:var(--font-primary)] font-bold uppercase tracking-wider"
             >

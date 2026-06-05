@@ -5,7 +5,7 @@ import { io } from 'socket.io-client';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Bookmark, Trash2 } from 'lucide-react';
-import { deleteRoomAction } from '@/app/actions/room-actions';
+import { deleteRoomAction, toggleSaveRoom } from '@/app/actions/room-actions';
 import { OnboardingFlow } from '@/components/OnboardingFlow';
 
 interface Room {
@@ -116,7 +116,19 @@ export function DashboardClient({ initialRooms, clerkId }: { initialRooms: Room[
                           <span className="text-[9px] font-[family-name:var(--font-primary)] border border-primary px-1 text-primary uppercase">CURATED</span>
                         )}
                         <button
-                          className="text-secondary hover:text-primary transition-colors focus:outline-none"
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            
+                            // Optimistic UI update
+                            setRooms(prev => prev.map(r => r.id === room.id ? { ...r, isSaved: !r.isSaved } : r));
+                            
+                            const formData = new FormData();
+                            formData.append('roomId', room.id);
+                            await toggleSaveRoom(formData);
+                          }}
+                          className="text-secondary hover:text-primary transition-colors focus:outline-none flex items-center justify-center"
+                          title={room.isSaved ? "Unsave Room" : "Save Room"}
                         >
                           <Bookmark size={18} className={room.isSaved ? 'fill-primary text-primary' : 'text-secondary'} />
                         </button>

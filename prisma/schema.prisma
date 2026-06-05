@@ -24,6 +24,13 @@ model User {
   github           String?
   bannerUrl        String?
   currentGrind     String?
+  whatImBuilding   String?
+  location         String?
+  timezone         String?
+  currentMood      String?
+  favoriteMusic    String?
+  deepWorkHours    String?
+  setupDetails     String?
   programmingTools String[]
   activeGoals      String[]
   customLinks      String[]
@@ -31,6 +38,7 @@ model User {
   lastActive       DateTime @default(now())
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  onboardingCompleted Boolean @default(false)
   roomsCreated     Room[]   @relation("RoomCreator")
   rooms            Room[]   @relation("RoomParticipants")
   savedRooms       Room[]   @relation("SavedRooms")
@@ -124,6 +132,7 @@ model DirectMessage {
   senderId    String
   receiverId  String
   content     String
+  delivered   Boolean  @default(true)
   read        Boolean  @default(false)
   createdAt   DateTime @default(now())
   sender      User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)

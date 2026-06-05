@@ -12,6 +12,15 @@ export default async function DashboardPage() {
     redirect('/sign-in');
   }
 
+  const dbUser = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { onboardingCompleted: true }
+  });
+
+  if (dbUser && !dbUser.onboardingCompleted) {
+    redirect('/onboarding');
+  }
+
   const [dbRooms] = await Promise.all([
     prisma.room.findMany({
       where: {

@@ -1,6 +1,6 @@
 'use client';
 
-import { Send } from 'lucide-react';
+import { Send, Check, CheckCheck } from 'lucide-react';
 
 interface ConvPartner {
   id: string;
@@ -14,6 +14,8 @@ interface DMMessage {
   content: string;
   senderId: string;
   createdAt: string;
+  delivered?: boolean;
+  read?: boolean;
   sender: { id: string; handle: string; displayName: string; avatarUrl: string | null };
 }
 
@@ -72,9 +74,22 @@ export function InboxThread({
               >
                 {msg.content}
               </div>
-              <span className="text-[9px] font-[family-name:var(--font-primary)]" style={{ color: 'var(--color-secondary)' }}>
-                {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </span>
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] font-[family-name:var(--font-primary)]" style={{ color: 'var(--color-secondary)' }}>
+                  {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+                {isMine && (
+                  <span className="flex items-center">
+                    {msg.read ? (
+                      <CheckCheck size={12} color="#3b82f6" />
+                    ) : msg.delivered ? (
+                      <CheckCheck size={12} style={{ color: 'var(--color-secondary)' }} />
+                    ) : (
+                      <Check size={12} style={{ color: 'var(--color-secondary)' }} />
+                    )}
+                  </span>
+                )}
+              </div>
             </div>
           );
         })}
@@ -90,10 +105,15 @@ export function InboxThread({
           type="text"
           value={draft}
           onChange={e => setDraft(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
+          onKeyDown={e => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              sendMessage();
+            }
+          }}
           placeholder="Message…"
           autoFocus
-          className="flex-1 px-4 py-3 bg-transparent text-xs font-[family-name:var(--font-primary)] outline-none uppercase"
+          className="flex-1 px-4 py-3 bg-transparent text-xs font-[family-name:var(--font-primary)] outline-none"
           style={{ color: 'var(--color-foreground)' }}
         />
         <button

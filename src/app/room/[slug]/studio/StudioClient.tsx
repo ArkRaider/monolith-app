@@ -288,7 +288,10 @@ export default function StudioClient({ slug, initialPwd, roomId, initialIsSaved,
     }
   };
 
-  const displayPeers = peers.slice(0, maxPods - 1);
+  // We no longer deduplicate by user ID so that you can join from multiple browsers and see all instances
+  const uniquePeers = peers;
+
+  const displayPeers = uniquePeers.slice(0, maxPods - 1);
 
   // ── Guard: wait for Clerk before rendering anything dynamic ─────────────────
   if (!isLoaded) return null;
@@ -404,9 +407,9 @@ export default function StudioClient({ slug, initialPwd, roomId, initialIsSaved,
             />
           </div>
         ) : (
-          <div className="flex-1 p-4 pb-6 flex flex-wrap content-center justify-center gap-4 overflow-y-auto">
+          <div className="flex-1 p-4 pb-6 flex flex-wrap content-start justify-start gap-4 overflow-y-auto w-full">
             {localState === 'grid' && (
-              <div className="relative aspect-video flex-grow basis-[300px] max-w-[800px] min-w-[280px]">
+              <div className="relative aspect-video w-full sm:w-[calc(50%-1rem)] lg:w-[calc(33.333%-1rem)] max-w-[600px] min-w-[280px]">
                 <LocalVideoPod 
                   stream={localStream} 
                   state={localState} 
@@ -418,7 +421,7 @@ export default function StudioClient({ slug, initialPwd, roomId, initialIsSaved,
               </div>
             )}
             {displayPeers.map(peer => (
-              <div key={peer.peerID} className="relative aspect-video flex-grow basis-[300px] max-w-[800px] min-w-[280px]">
+              <div key={peer.peerID} className="relative aspect-video w-full sm:w-[calc(50%-1rem)] lg:w-[calc(33.333%-1rem)] max-w-[600px] min-w-[280px]">
                 <RemoteVideoPod 
                   stream={peer.stream}
                   handle={peer.user?.handle || 'Unknown'}
@@ -470,7 +473,7 @@ export default function StudioClient({ slug, initialPwd, roomId, initialIsSaved,
               onClick={() => setActiveTab('people')}
               className={`flex-1 min-w-[30%] py-3 text-[10px] font-[family-name:var(--font-primary)] font-bold uppercase transition-colors ${activeTab === 'people' ? 'bg-primary text-primary-foreground' : 'text-secondary hover:text-foreground'}`}
             >
-              People ({peers.length + 1})
+              People ({uniquePeers.length + 1})
             </button>
             <button 
               onClick={() => setActiveTab('tasks')}
@@ -520,7 +523,7 @@ export default function StudioClient({ slug, initialPwd, roomId, initialIsSaved,
                   </div>
                 </div>
                 
-                {peers.map(peer => (
+                {uniquePeers.map(peer => (
                   <div key={peer.peerID} className="px-3 py-2 border border-border text-foreground font-[family-name:var(--font-primary)] text-sm flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>

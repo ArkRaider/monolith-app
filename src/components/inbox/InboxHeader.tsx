@@ -5,6 +5,7 @@ import * as Popover from '@radix-ui/react-popover';
 import { ArrowLeft, ExternalLink, X } from 'lucide-react';
 import { getUserProfile } from '@/app/actions/user-actions';
 import { calculateLevel } from '@/lib/title-calculator';
+import Link from 'next/link';
 
 interface ConvPartner {
   id: string;
@@ -156,16 +157,14 @@ export function InboxHeader({
 
                       {/* Actions */}
                       <div className="flex gap-2 mt-1">
-                        <a
-                          href={`/u/${profilePreview.handle}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <Link
+                          href={`/profile/${profilePreview.handle}`}
                           onClick={() => setProfilePopoverOpen(false)}
                           className="flex-1 flex items-center justify-center gap-2 p-2.5 border-[length:var(--border-weight)] border-border bg-surface text-foreground hover:bg-surface-high font-[family-name:var(--font-primary)] font-black text-[10px] tracking-widest uppercase hover:opacity-90 active:scale-[0.98] transition-all"
                           title="View Full Profile"
                         >
                           <ExternalLink size={12} /> View Profile
-                        </a>
+                        </Link>
                       </div>
                     </div>
                   ) : (

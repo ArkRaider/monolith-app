@@ -53,15 +53,24 @@ export default function AudioGenerator({ theme, soundType }: AudioGeneratorProps
       osc2.frequency.value = 65.5;
       osc2Ref.current = osc2;
 
+      // Binaural Audio Panners
+      const panner1 = ctx.createStereoPanner();
+      panner1.pan.value = -1; // Left ear
+
+      const panner2 = ctx.createStereoPanner();
+      panner2.pan.value = 1; // Right ear
+
       // Sub gain for sawtooth oscillator to keep it quiet and warm
       const subGain = ctx.createGain();
       subGain.gain.value = 0.15;
 
       // Audio Routing
-      osc1.connect(filter);
+      osc1.connect(panner1);
+      panner1.connect(filter);
       
       osc2.connect(subGain);
-      subGain.connect(filter);
+      subGain.connect(panner2);
+      panner2.connect(filter);
 
       filter.connect(gain);
       gain.connect(ctx.destination);
@@ -111,7 +120,7 @@ export default function AudioGenerator({ theme, soundType }: AudioGeneratorProps
     if (soundType === 'silence' && isPlaying) {
       stopDrone();
     } else if (soundType === 'drone' && !isPlaying) {
-      // Prompt user to start or hold
+      startDrone();
     }
   }, [soundType]);
 

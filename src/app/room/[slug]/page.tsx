@@ -51,7 +51,6 @@ export default async function RoomPreview({ params }: { params: Promise<{ slug: 
               <h1 className="font-[family-name:var(--font-primary)] font-semibold text-3xl md:text-4xl">{room.name}</h1>
               <div className="flex items-center gap-3 font-[family-name:var(--font-primary)] text-xs text-secondary tracking-wide uppercase">
                 <span className="px-2 py-1 border border-border">{room.subject}</span>
-                <span>@{creatorHandle}</span>
                 {isCurated && <span className="text-tertiary">MONOLITH</span>}
               </div>
             </div>

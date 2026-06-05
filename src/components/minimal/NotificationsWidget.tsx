@@ -8,7 +8,7 @@ import { useNotifications } from '@/context/NotificationsContext';
 import { getFriendRequests, acceptFriendRequest, rejectFriendRequest } from '@/app/actions/friend-actions';
 import { useNotification } from '@/context/NotificationContext';
 
-export default function NotificationsWidget() {
+export default function NotificationsWidget({ isScrolled = true }: { isScrolled?: boolean }) {
   const { user, isLoaded } = useUser();
   const { isOpen, closeNotifications } = useNotifications();
   const { theme } = useTheme();
@@ -101,10 +101,19 @@ export default function NotificationsWidget() {
 
 
   return (
-    <div className={`fixed z-[200] right-6 top-1/2 -translate-y-1/2 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] pointer-events-none`}>
+    <div className={`fixed z-[200] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] pointer-events-none ${
+      isScrolled ? 'right-6 top-1/2 -translate-y-1/2' : 'top-20 right-6'
+    }`}>
       <div
-        className={`w-[340px] h-[500px] flex flex-col overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${isOpen ? 'opacity-100 scale-100 translate-x-0 pointer-events-auto' : 'opacity-0 scale-95 translate-x-8 pointer-events-none absolute'}`}
-        style={minimalDashboardStyles}
+        className={`w-[340px] h-[500px] flex flex-col overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          isOpen 
+            ? 'opacity-100 scale-100 translate-x-0 translate-y-0 pointer-events-auto' 
+            : `opacity-0 scale-95 pointer-events-none absolute ${isScrolled ? 'translate-x-8 translate-y-0' : 'translate-x-0 -translate-y-8'}`
+        }`}
+        style={{
+          ...minimalDashboardStyles,
+          transformOrigin: isScrolled ? 'right center' : 'top right'
+        }}
       >
         {/* Header */}
         <div

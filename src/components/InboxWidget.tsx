@@ -40,6 +40,8 @@ interface DMMessage {
   content: string;
   senderId: string;
   createdAt: string;
+  delivered?: boolean;
+  read?: boolean;
   sender: { id: string; handle: string; displayName: string; avatarUrl: string | null };
 }
 
@@ -99,6 +101,16 @@ export function InboxWidget({ inline }: { inline?: boolean }) {
     setTotalUnreadLocal(n);
     setContextUnread(n);
   };
+
+  const [isScrolled, setIsScrolled] = useState(false);
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 30);
+    };
+    handleScroll();
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const activeConvRef = useRef<ConvPartner | null>(null);
@@ -167,6 +179,8 @@ export function InboxWidget({ inline }: { inline?: boolean }) {
       const isIncoming = msg.senderId !== user.id;
 
       if (isIncoming) {
+        socket.emit('dm:delivered', { messageId: msg.id, senderId: msg.senderId });
+
         const isCurrentThread = activeConvRef.current?.id === msg.senderId;
         if ((!open && !inline) || !isCurrentThread) {
           notify(`@${msg.sender?.handle ?? 'Someone'} sent you a message`, msg.sender?.handle);
@@ -196,16 +210,22 @@ export function InboxWidget({ inline }: { inline?: boolean }) {
       setTotalUnread(list.reduce((sum, c) => sum + (c.unread ?? 0), 0));
     };
 
+    const onStatusUpdate = ({ messageId, delivered, read }: { messageId: string, delivered: boolean, read: boolean }) => {
+      setMessages(prev => prev.map(m => m.id === messageId ? { ...m, delivered, read } : m));
+    };
+
     socket.on('connect', onConnect);
     socket.on('dm:receive', onDmReceive);
     socket.on('dm:history:res', onHistoryRes);
     socket.on('dm:conversations:res', onConversationsRes);
+    socket.on('dm:status-update', onStatusUpdate);
 
     return () => {
       socket.off('connect', onConnect);
       socket.off('dm:receive', onDmReceive);
       socket.off('dm:history:res', onHistoryRes);
       socket.off('dm:conversations:res', onConversationsRes);
+      socket.off('dm:status-update', onStatusUpdate);
     };
   }, [isLoaded, user, open, inline, notify]);
 
@@ -271,7 +291,7 @@ export function InboxWidget({ inline }: { inline?: boolean }) {
     setSending(false);
   }, [draft, activeConv, sending]);
 
-  if (!isLoaded || !user || pathname === '/') return null;
+  if (!isLoaded || !user || pathname === '/' || pathname?.startsWith('/profile')) return null;
 
   const initials = (name: string) =>
     name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '??';
@@ -306,8 +326,8 @@ export function InboxWidget({ inline }: { inline?: boolean }) {
 
   const content = (
     <div
-      className={`${inline ? 'w-full h-full' : (isMinimalDashboard ? 'w-[340px] h-[500px]' : 'w-[320px] h-[440px]')} flex flex-col overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${!inline && isMinimalDashboard ? (open ? 'opacity-100 scale-100 translate-x-0 pointer-events-auto' : 'opacity-0 scale-95 translate-x-8 pointer-events-none absolute') : ''}`}
-      style={inline ? { background: 'transparent' } : (isMinimalDashboard ? minimalDashboardStyles : legacyStyles)}
+      className={`${inline ? 'w-full h-full' : (isMinimalDashboard ? 'w-[340px] h-[500px]' : 'w-[320px] h-[440px]')} flex flex-col overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${!inline && isMinimalDashboard ? (open ? 'opacity-100 scale-100 translate-x-0 translate-y-0 pointer-events-auto' : `opacity-0 scale-95 pointer-events-none absolute ${isScrolled ? 'translate-x-8 translate-y-0' : 'translate-x-0 -translate-y-8'}`) : ''}`}
+      style={inline ? { background: 'transparent', transformOrigin: isScrolled ? 'right center' : 'top right' } : (isMinimalDashboard ? { ...minimalDashboardStyles, transformOrigin: isScrolled ? 'right center' : 'top right' } : legacyStyles)}
     >
       <InboxHeader
         inline={inline}
@@ -369,7 +389,7 @@ export function InboxWidget({ inline }: { inline?: boolean }) {
   }
 
   return (
-    <div className={`fixed z-[200] flex flex-col items-end gap-2 transition-all duration-500 ${isMinimalDashboard ? 'right-6 top-1/2 -translate-y-1/2' : 'bottom-[4.75rem] right-4'}`}>
+    <div className={`fixed z-[200] flex flex-col items-end gap-2 transition-all duration-500 ${isMinimalDashboard ? (isScrolled ? 'right-6 top-1/2 -translate-y-1/2' : 'top-20 right-6') : 'bottom-[4.75rem] right-4'}`}>
       {isMinimalDashboard ? content : (open && content)}
 
       {/* ── Floating Trigger Button ── */}

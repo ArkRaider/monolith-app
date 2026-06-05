@@ -7,15 +7,20 @@ import { Clock, Plus, Volume2, VolumeX, Video, MicOff, ChevronDown, LayoutGrid, 
 import { UserButton } from '@clerk/nextjs';
 import { dark } from '@clerk/themes';
 import { useTheme } from 'next-themes';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import NavigationDock from '@/components/minimal/NavigationDock'; 
 import CreateRoomModal from '@/components/minimal/CreateRoomModal';
-import CustomCursor from '@/components/minimal/CustomCursor';
 import AudioGenerator from '@/components/minimal/AudioGenerator';
+
+import { useDroneAudio } from '@/hooks/useDroneAudio';
 import InteractiveCanvas from '@/components/minimal/InteractiveCanvas';
 import DroneVisualizer from '@/components/minimal/DroneVisualizer';
 import NotificationsWidget from '@/components/minimal/NotificationsWidget';
 import ProfileWidget from '@/components/minimal/ProfileWidget';
+import InteractiveCalendarWidget from '@/components/minimal/InteractiveCalendarWidget';
+import ShaderBackground from '@/components/ui/ShaderBackground';
+import WeeklyProgressPanel from '@/components/minimal/WeeklyProgressPanel';
 
 interface Room {
   id: string;
@@ -43,7 +48,10 @@ export default function MinimalDashboardClient({ initialRooms, clerkId }: { init
   
   const roomsSectionRef = React.useRef<HTMLDivElement>(null);
   const scrollToRooms = () => {
-    roomsSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (roomsSectionRef.current) {
+      const y = roomsSectionRef.current.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
   };
   
   // UI State
@@ -51,6 +59,9 @@ export default function MinimalDashboardClient({ initialRooms, clerkId }: { init
   const [mounted, setMounted] = useState(false);
   const [weeklyHours, setWeeklyHours] = useState<number>(36.4);
   const [dailyHours, setDailyHours] = useState<number[]>([3, 5, 2.5, 8, 4.5, 1.5, 6]);
+  
+  const [isProgressPanelOpen, setIsProgressPanelOpen] = useState(false);
+  const [selectedProgressDay, setSelectedProgressDay] = useState(0);
 
   useEffect(() => {
     setMounted(true);
@@ -91,14 +102,16 @@ export default function MinimalDashboardClient({ initialRooms, clerkId }: { init
     fetchWeeklyActivity();
   }, [fetchWeeklyActivity]);
   const [currentTime, setCurrentTime] = useState<string>('');
-  const [soundType, setSoundType] = useState<'drone' | 'silence'>('silence');
+  const { toggleDrone, isPlaying } = useDroneAudio(0.008);
   const [isScrolled, setIsScrolled] = useState(false);
   
   // Toggles & Modes
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [customCursorActive, setCustomCursorActive] = useState(true);
+
   const [viewMode, setViewMode] = useState<'gallery' | 'list'>('gallery');
   const [activeFilter, setActiveFilter] = useState<'ALL' | 'CURATED' | 'CAMERA ONLY'>('ALL');
+  const [showUserMade, setShowUserMade] = useState(true);
+  const [expandedRoom, setExpandedRoom] = useState<Room | null>(null);
 
   // Filtered Rooms
   const filteredRooms = rooms.filter(room => {
@@ -106,6 +119,9 @@ export default function MinimalDashboardClient({ initialRooms, clerkId }: { init
     if (activeFilter === 'CAMERA ONLY') return room.allowCam && !room.allowMic;
     return true;
   });
+
+  const curatedRooms = filteredRooms.filter(r => r.isCurated);
+  const userMadeRooms = filteredRooms.filter(r => !r.isCurated);
 
   // Scroll listener
   useEffect(() => {
@@ -151,6 +167,7 @@ export default function MinimalDashboardClient({ initialRooms, clerkId }: { init
   const isDark = theme === 'dark-void' || theme === 'dark' || (theme?.includes('dark') ?? false);
 
   const now = new Date();
+  const currentDayIndex = (now.getDay() || 7) - 1;
   const currentMonth = now.toLocaleString('default', { month: 'short' });
   const currentYear = now.getFullYear();
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
@@ -184,8 +201,6 @@ export default function MinimalDashboardClient({ initialRooms, clerkId }: { init
         />
       </div>
 
-      {customCursorActive && <CustomCursor theme={theme as any} />}
-      <div className="hidden"><AudioGenerator theme={theme as any} soundType={soundType} /></div>
 
       {/* Left Vertical Bar (Appears on Scroll) */}
       <div className={`fixed left-0 top-0 h-full w-16 sm:w-20 z-50 flex flex-col items-center justify-between py-8 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${
@@ -235,23 +250,24 @@ export default function MinimalDashboardClient({ initialRooms, clerkId }: { init
             ? 'opacity-0 -translate-y-8 pointer-events-none'
             : 'opacity-100 translate-y-0 py-8'
         }`}>
-          <div className="w-full max-w-7xl mx-auto pr-6 md:pr-12 pl-24 sm:pl-32 md:pl-36">
+          <div className="w-full max-w-7xl mx-auto pr-8 md:pr-24 lg:pr-36 xl:pr-48 pl-24 sm:pl-32 md:pl-36">
             <header className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 border-b border-neutral-500/10 pb-6">
               <div className="flex flex-col select-none justify-center">
                 <h1 className="font-black tracking-tighter leading-none text-4xl sm:text-5xl md:text-6xl lg:text-7xl">
                   MONOLITH
                 </h1>
                 <div className="mt-2">
-                  <p className="text-[9px] sm:text-[10px] tracking-[0.3em] font-medium opacity-50 uppercase whitespace-nowrap">
+                  <p className={`text-[9px] sm:text-[10px] tracking-[0.3em] font-bold uppercase whitespace-nowrap ${isDark ? 'opacity-50' : 'opacity-70'}`}>
                     Authenticated • Minimal Environment
                   </p>
                 </div>
               </div>
 
-          <div className="flex flex-col sm:flex-row items-center gap-4 z-50 pointer-events-auto">
-            <div className="flex items-center gap-3 py-2 px-4 rounded-full border border-neutral-500/10 bg-black/5 dark:bg-black/30 backdrop-blur-2xl w-full sm:w-auto justify-center">
-              <Clock className="w-4 h-4 opacity-50" />
-              <span className="text-xs font-mono tracking-widest opacity-80 select-all">
+          <div className="flex flex-col items-end gap-6 z-50 pointer-events-auto relative h-[100px]">
+            <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
+              <div className="flex items-center gap-3 py-2 px-4 rounded-full border border-neutral-500/10 bg-black/5 dark:bg-black/30 backdrop-blur-2xl w-full sm:w-auto justify-center">
+              <Clock className={`w-4 h-4 ${isDark ? 'opacity-50' : 'opacity-70'}`} />
+              <span className={`text-xs font-mono tracking-widest select-all ${isDark ? 'opacity-80' : 'opacity-100 font-bold'}`}>
                 {currentTime}
               </span>
             </div>
@@ -268,104 +284,112 @@ export default function MinimalDashboardClient({ initialRooms, clerkId }: { init
 
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setSoundType(soundType === 'drone' ? 'silence' : 'drone')}
+                  onClick={toggleDrone}
                   className={`px-4 py-2 text-[10px] font-mono tracking-widest rounded-full uppercase border transition-all cursor-pointer flex items-center gap-2 ${
-                    soundType === 'drone'
+                    isPlaying
                       ? 'bg-neutral-900 border-white/20 text-white dark:bg-white dark:text-black dark:border-white shadow-[0_0_12px_rgba(255,255,255,0.25)]'
-                      : 'bg-transparent border-neutral-500/20 text-neutral-400 hover:text-white'
+                      : isDark ? 'bg-transparent border-neutral-500/20 text-neutral-400 hover:text-white' : 'bg-transparent border-black/20 text-neutral-600 hover:text-black font-bold'
                   }`}
                 >
-                  <DroneVisualizer isActive={soundType === 'drone'} isDark={isDark && soundType === 'drone'} />
-                  <span className="hidden sm:inline">{soundType === 'drone' ? 'DRONE: ACTIVE' : 'DRONE: CLAMPED'}</span>
+                  <DroneVisualizer isActive={isPlaying} isDark={isDark && isPlaying} />
+                  <span className="hidden sm:inline">{isPlaying ? 'DRONE: ACTIVE' : 'DRONE: CLAMPED'}</span>
                 </button>
 
               </div>
             </div>
+
+            <div className="absolute top-16 right-0 w-full flex justify-end">
+              <NavigationDock 
+                theme={theme as any} 
+                setTheme={setTheme as any} 
+                onHomeClick={() => router.push('/')}
+                onBellClick={() => {}}
+                onSettingsClick={() => {}}
+                hasNotifications={false}
+                pulseTrigger={false}
+                positionMode="in-flow-horizontal"
+                isVisible={!isScrolled}
+              />
+            </div>
+          </div>
           </div>
             </header>
           </div>
         </div>
 
         {/* Main Content */}
-        <main className="w-full max-w-[85rem] mx-auto pr-6 md:pr-12 pl-24 sm:pl-32 md:pl-36 flex-1 flex flex-col lg:flex-row gap-8 items-stretch z-10 pointer-events-auto mt-4 md:mt-16">
+        <main className="w-full max-w-[85rem] mx-auto pr-8 md:pr-24 lg:pr-36 xl:pr-48 pl-24 sm:pl-32 md:pl-36 flex-1 flex flex-col lg:flex-row gap-8 items-stretch z-10 pointer-events-auto mt-4 md:mt-16">
           <div className="flex-1 flex flex-col justify-between space-y-16 lg:space-y-24">
             
-            <div className="flex flex-col lg:flex-row justify-between items-start gap-12 lg:gap-20 w-full">
-              {/* Hero Section (61.8% Golden Ratio) */}
-              <section className="space-y-6 flex-[1.618] select-none shrink-0">
-                <span className="text-[10px] font-mono tracking-[0.4em] text-neutral-400 uppercase">MANDATORY COPRESENCE RING</span>
-                <h2 className="text-4xl sm:text-5xl lg:text-[4.5rem] font-black tracking-tighter uppercase leading-[0.9] font-sans">
-                  CONQUER ISOLATION <br /><span className="opacity-40">THROUGH SILENCE.</span>
+            <div className="flex flex-col lg:flex-row justify-between items-start gap-10 lg:gap-16 w-full">
+              {/* Hero Section */}
+              <section className="space-y-6 flex-1 min-w-0 select-none">
+                <span className={`text-[10px] font-mono tracking-[0.4em] uppercase ${isDark ? 'text-neutral-400' : 'text-neutral-500 font-bold'}`}>MANDATORY COPRESENCE RING</span>
+                <h2 className="text-4xl sm:text-5xl lg:text-6xl xl:text-[4.5rem] font-black tracking-tighter uppercase leading-[0.9] font-sans whitespace-nowrap">
+                  CONQUER ISOLATION <br /><span className={isDark ? 'opacity-40' : 'opacity-60'}>THROUGH SILENCE.</span>
                 </h2>
-                <p className="text-sm sm:text-base text-neutral-400 tracking-wide font-mono uppercase opacity-75 max-w-2xl pt-2">
+                <p className={`text-sm sm:text-base tracking-wide font-mono uppercase max-w-2xl pt-2 ${isDark ? 'text-neutral-400 opacity-75' : 'text-neutral-500 opacity-90 font-semibold'}`}>
                   Camera connection mandatory. Microphone fully clamped to off. Work in absolute visual copresence.
                 </p>
-                <div className="pt-8">
-                  <button 
-                    onClick={scrollToRooms}
-                    className={`flex items-center gap-3 px-6 py-3 rounded-full font-mono text-[10px] tracking-widest uppercase transition-all duration-300 transform hover:scale-105 border ${
-                      isDark 
-                        ? 'bg-white/10 hover:bg-white/20 border-white/20 text-white shadow-[0_0_15px_rgba(255,255,255,0.1)]' 
-                        : 'bg-black/5 hover:bg-black/10 border-black/20 text-black shadow-[0_0_15px_rgba(0,0,0,0.1)]'
-                    }`}
-                  >
-                    <span>Explore Instances</span>
-                    <ChevronDown className="w-4 h-4 animate-bounce" />
-                  </button>
+                <div className="pt-10 flex flex-col xl:flex-row items-start xl:items-center gap-8 w-full pr-4">
+                  <div className="flex shrink-0">
+                    <button 
+                      onClick={scrollToRooms}
+                      className={`flex items-center gap-3 px-6 py-4 rounded-full font-mono text-[10px] tracking-widest uppercase transition-all duration-300 transform hover:scale-105 border ${
+                        isDark 
+                          ? 'bg-white/10 hover:bg-white/20 border-white/20 text-white shadow-[0_0_15px_rgba(255,255,255,0.1)]' 
+                          : 'bg-black/5 hover:bg-black/10 border-black/20 text-black shadow-[0_0_15px_rgba(0,0,0,0.1)]'
+                      }`}
+                    >
+                      <span>Explore Instances</span>
+                      <ChevronDown className="w-4 h-4 animate-bounce" />
+                    </button>
+                  </div>
+
+                  {/* Activity Metric Graphic */}
+                  <div className={`hidden sm:flex flex-row flex-1 items-center justify-between p-5 lg:p-6 rounded-[2rem] border transition-all h-[130px] w-full max-w-[500px] ${isDark ? 'bg-neutral-900/40 border-white/10' : 'bg-white/40 border-black/10'}`}>
+                    <div className="flex flex-col gap-1 pr-6 border-r border-neutral-500/20 mr-6 h-full justify-center">
+                      <span className={`text-[9px] font-mono tracking-widest uppercase whitespace-nowrap ${isDark ? 'opacity-40' : 'opacity-60 font-bold'}`}>Time In Flow</span>
+                      <span className="font-mono text-3xl tracking-tighter">{weeklyHours.toFixed(2)}<span className={`text-xs ml-1 ${isDark ? 'opacity-50' : 'opacity-70 font-semibold'}`}>hrs</span></span>
+                    </div>
+                    
+                    <div className="flex items-end justify-between h-full gap-3 flex-1 pt-2">
+                      {dailyHours.map((hours, i) => (
+                        <div 
+                          key={i} 
+                          className="flex flex-col items-center gap-2 flex-1 h-full cursor-pointer group/col"
+                          onClick={() => {
+                            setSelectedProgressDay(i);
+                            setIsProgressPanelOpen(true);
+                          }}
+                        >
+                          <div className="w-full relative flex items-end justify-center h-full group">
+                            <div 
+                              className={`w-full max-w-[14px] rounded-full transition-all duration-300 ${isDark ? 'bg-white' : 'bg-black'} ${i === currentDayIndex ? 'opacity-100 shadow-[0_0_15px_rgba(255,255,255,0.6)] animate-[pulse_1.5s_ease-in-out_infinite]' : (isDark ? 'opacity-20 group-hover:opacity-60' : 'opacity-[0.25] group-hover:opacity-[0.65]')}`}
+                              style={{ height: `${Math.max(4, (hours / 12) * 100)}%` }}
+                            />
+                          </div>
+                          <span className={`text-[8px] font-mono uppercase transition-opacity ${i === currentDayIndex ? 'opacity-100 font-bold' : (isDark ? 'opacity-40 group-hover/col:opacity-100' : 'opacity-60 font-bold group-hover/col:opacity-100')}`}>
+                            {['M', 'T', 'W', 'T', 'F', 'S', 'S'][i]}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </section>
 
-              {/* Widgets Section (38.2% Golden Ratio) */}
-              <div className="hidden lg:flex gap-4 lg:gap-6 flex-1 shrink-0 w-full lg:w-auto mt-8 lg:mt-0">
+              {/* Widgets Section */}
+              <div className="hidden lg:flex flex-col shrink-0 w-[360px] xl:w-[400px] mt-8 lg:mt-0" style={{ marginRight: '120px' }}>
                 {/* Calendar Widget */}
-                <div className={`flex flex-col flex-1 p-6 lg:p-7 rounded-[2rem] lg:rounded-[2.5rem] border transition-all ${isDark ? 'bg-neutral-900/40 border-white/10' : 'bg-white/40 border-black/10'}`}>
-                  <div className="flex justify-between items-end mb-4 border-b border-neutral-500/20 pb-3">
-                    <span className="font-mono text-sm tracking-widest uppercase">{currentMonth} {currentYear}</span>
-                  </div>
-                  <div className="grid grid-cols-7 gap-1 text-[8px] font-mono tracking-widest uppercase opacity-40 mb-3 text-center">
-                    {['S','M','T','W','T','F','S'].map((d, i) => <div key={i}>{d}</div>)}
-                  </div>
-                  <div className="grid grid-cols-7 gap-y-3 gap-x-1 text-[10px] font-mono text-center">
-                    {calendarDays.map((day, i) => (
-                      <div key={i} className={`w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-full mx-auto transition-all ${
-                        day === now.getDate() ? (isDark ? 'bg-white text-black font-bold shadow-[0_0_15px_rgba(255,255,255,0.4)]' : 'bg-black text-white font-bold shadow-md') 
-                        : day ? (isDark ? 'hover:bg-white/10 cursor-pointer opacity-70' : 'hover:bg-black/10 cursor-pointer opacity-70') : ''
-                      }`}>
-                        {day || ''}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Activity Metric Graphic */}
-                <div className={`flex flex-col flex-1 p-6 lg:p-7 rounded-[2rem] lg:rounded-[2.5rem] border transition-all ${isDark ? 'bg-neutral-900/40 border-white/10' : 'bg-white/40 border-black/10'}`}>
-                  <div className="flex justify-between items-end mb-4 border-b border-neutral-500/20 pb-3">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[9px] font-mono tracking-widest opacity-40 uppercase">Time In Flow</span>
-                      <span className="font-mono text-2xl tracking-tighter">{weeklyHours.toFixed(2)}<span className="text-xs opacity-50 ml-1">hrs</span></span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-end justify-between h-full gap-2 pt-2">
-                    {dailyHours.map((hours, i) => (
-                      <div key={i} className="flex flex-col items-center gap-2 flex-1 h-full">
-                        <div className="w-full relative flex items-end justify-center h-full group">
-                          <div 
-                            className={`w-full max-w-[12px] rounded-full transition-all duration-300 ${isDark ? 'bg-white' : 'bg-black'} ${i === 6 ? 'opacity-100 shadow-[0_0_15px_rgba(255,255,255,0.6)] animate-[pulse_1.5s_ease-in-out_infinite]' : 'opacity-20 group-hover:opacity-60'}`}
-                            style={{ height: `${(hours / 12) * 100}%` }}
-                          />
-                        </div>
-                        <span className={`text-[8px] font-mono uppercase ${i === 6 ? 'opacity-100 font-bold' : 'opacity-40'}`}>
-                          {['M', 'T', 'W', 'T', 'F', 'S', 'S'][i]}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <InteractiveCalendarWidget />
               </div>
             </div>
 
-            <div className="space-y-4" ref={roomsSectionRef}>
+            <div className="relative space-y-4" ref={roomsSectionRef}>
+              <div className="absolute left-1/2 top-[-100px] bottom-[-8rem] -translate-x-1/2 w-[150vw] z-[-1] pointer-events-none [mask-image:linear-gradient(to_bottom,transparent_0%,black_50%,black_100%)] [-webkit-mask-image:linear-gradient(to_bottom,transparent_0%,black_50%,black_100%)]">
+                <ShaderBackground />
+              </div>
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 select-none">
                 <div className="flex gap-2">
                   {['ALL', 'CURATED', 'CAMERA ONLY'].map((filter) => (
@@ -401,18 +425,20 @@ export default function MinimalDashboardClient({ initialRooms, clerkId }: { init
 
               {viewMode === 'gallery' ? (
                 /* Minimal Room Cards mapped from dynamic DB data */
-                <div className="flex gap-6 overflow-x-auto pb-8 pr-8 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent [mask-image:linear-gradient(to_right,black_85%,transparent_100%)]">
-                  {filteredRooms.map((room) => {
-                    const currentCount = liveHeadcounts[room.slug] !== undefined ? liveHeadcounts[room.slug] : room.participantCount;
-                    const isCameraOnly = room.allowCam && !room.allowMic;
+                <>
+                  <div className="flex gap-6 overflow-x-auto pt-8 -mt-8 pb-8 pl-4 -ml-4 pr-8 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent [mask-image:linear-gradient(to_right,black_85%,transparent_100%)]">
+                    {curatedRooms.map((room) => {
+                      const currentCount = liveHeadcounts[room.slug] !== undefined ? liveHeadcounts[room.slug] : room.participantCount;
+                      const isCameraOnly = room.allowCam && !room.allowMic;
 
                     return (
-                      <div 
+                      <motion.div 
+                        layoutId={`room-card-${room.id}`}
                         key={room.id} 
                         className={`group relative shrink-0 w-[80vw] sm:w-80 p-8 rounded-[2.5rem] border flex flex-col justify-between transition-all duration-500 cursor-pointer overflow-hidden transform hover:-translate-y-2 hover:scale-[1.02] shadow-xl hover:shadow-2xl ${
                           isDark ? 'bg-neutral-900/60 backdrop-blur-2xl border-white/10 hover:border-white/30 hover:shadow-[0_20px_50px_rgba(255,255,255,0.05)]' : 'bg-white/60 backdrop-blur-2xl border-black/10 hover:border-black/30 hover:shadow-[0_20px_50px_rgba(0,0,0,0.05)]'
                         }`} 
-                        onClick={() => handleEnterRoom(room.slug)}
+                        onClick={() => setExpandedRoom(room)}
                         onMouseMove={(e) => {
                           const rect = e.currentTarget.getBoundingClientRect();
                           const x = e.clientX - rect.left;
@@ -445,19 +471,106 @@ export default function MinimalDashboardClient({ initialRooms, clerkId }: { init
                             <span className="text-[9px] font-mono tracking-widest opacity-40 uppercase">Occupants</span>
                             <span className="font-mono text-lg">{currentCount}/{room.capacity}</span>
                           </div>
-                          <button className={`px-4 py-2 text-[10px] font-mono font-bold tracking-widest uppercase rounded-full transition-transform group-hover:scale-105 ${isDark ? 'bg-white text-black' : 'bg-black text-white'}`}>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleEnterRoom(room.slug); }}
+                            className={`px-4 py-2 text-[10px] font-mono font-bold tracking-widest uppercase rounded-full transition-transform hover:scale-105 ${isDark ? 'bg-white text-black' : 'bg-black text-white'}`}
+                          >
                             ENTER
                           </button>
                         </div>
-                      </div>
+                      </motion.div>
                     );
                   })}
-                  {filteredRooms.length === 0 && (
+                  {curatedRooms.length === 0 && (
                      <div className="w-full flex items-center justify-center py-12 border border-dashed border-neutral-500/20 rounded-3xl opacity-50 font-mono text-[10px] tracking-widest uppercase">
                        No instances found
                      </div>
                   )}
-                </div>
+                  </div>
+
+                  {userMadeRooms.length > 0 && (
+                    <div className="mt-8 flex flex-col gap-6">
+                      <div className="flex items-center">
+                        <button 
+                          onClick={() => setShowUserMade(!showUserMade)}
+                          className={`flex items-center gap-3 px-6 py-3 rounded-full font-mono text-[10px] tracking-widest uppercase transition-all duration-300 transform hover:scale-105 border ${
+                            isDark 
+                              ? 'bg-white/5 hover:bg-white/10 border-white/20 text-white' 
+                              : 'bg-black/5 hover:bg-black/10 border-black/20 text-black'
+                          }`}
+                        >
+                          <span>User-Made Instances</span>
+                          <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${showUserMade ? 'rotate-180' : ''}`} />
+                        </button>
+                      </div>
+
+                      <AnimatePresence>
+                        {showUserMade && (
+                          <motion.div 
+                            initial={{ height: 0, opacity: 0 }} 
+                            animate={{ height: 'auto', opacity: 1 }} 
+                            exit={{ height: 0, opacity: 0 }}
+                            className="flex gap-6 overflow-x-auto pt-4 pb-8 pl-4 -ml-4 pr-8 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent [mask-image:linear-gradient(to_right,black_85%,transparent_100%)]"
+                          >
+                            {userMadeRooms.map((room) => {
+                              const currentCount = liveHeadcounts[room.slug] !== undefined ? liveHeadcounts[room.slug] : room.participantCount;
+                              const isCameraOnly = room.allowCam && !room.allowMic;
+
+                              return (
+                                <motion.div 
+                                  layoutId={`room-card-${room.id}`}
+                                  key={room.id} 
+                                  className={`group relative shrink-0 w-[80vw] sm:w-80 p-8 rounded-[2.5rem] border flex flex-col justify-between transition-all duration-500 cursor-pointer overflow-hidden transform hover:-translate-y-2 hover:scale-[1.02] shadow-xl hover:shadow-2xl ${
+                                    isDark ? 'bg-neutral-900/60 backdrop-blur-2xl border-white/10 hover:border-white/30 hover:shadow-[0_20px_50px_rgba(255,255,255,0.05)]' : 'bg-white/60 backdrop-blur-2xl border-black/10 hover:border-black/30 hover:shadow-[0_20px_50px_rgba(0,0,0,0.05)]'
+                                  }`} 
+                                  onClick={() => setExpandedRoom(room)}
+                                  onMouseMove={(e) => {
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    const x = e.clientX - rect.left;
+                                    const y = e.clientY - rect.top;
+                                    e.currentTarget.style.setProperty('--mouse-x', `${x}px`);
+                                    e.currentTarget.style.setProperty('--mouse-y', `${y}px`);
+                                  }}
+                                >
+                                  {/* Magnetic Glare Effect */}
+                                  <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none ${isDark ? 'mix-blend-overlay' : 'mix-blend-multiply'}`}
+                                       style={{ background: `radial-gradient(300px circle at var(--mouse-x) var(--mouse-y), ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}, transparent 40%)` }}
+                                  />
+
+                                  <div className="relative z-10">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      {/* HARDWARE STATE BADGE */}
+                                      {isCameraOnly && (
+                                        <span className="text-[8px] font-mono tracking-widest flex items-center gap-1 text-neutral-400 border border-neutral-700 px-2 py-0.5 rounded-full">
+                                          <Video className="w-2.5 h-2.5" /> ON | <MicOff className="w-2.5 h-2.5" /> OFF
+                                        </span>
+                                      )}
+                                    </div>
+                                    <h3 className="font-bold text-xl tracking-tight uppercase leading-none">{room.name}</h3>
+                                    <p className="text-[10px] font-mono uppercase tracking-widest opacity-50 mt-2">{room.subject}</p>
+                                  </div>
+                                  
+                                  <div className="mt-8 flex justify-between items-end border-t border-white/5 pt-4 relative z-10">
+                                    <div className="flex flex-col gap-1">
+                                      <span className="text-[9px] font-mono tracking-widest opacity-40 uppercase">Occupants</span>
+                                      <span className="font-mono text-lg">{currentCount}/{room.capacity}</span>
+                                    </div>
+                                    <button 
+                                      onClick={(e) => { e.stopPropagation(); handleEnterRoom(room.slug); }}
+                                      className={`px-4 py-2 text-[10px] font-mono font-bold tracking-widest uppercase rounded-full transition-transform hover:scale-105 ${isDark ? 'bg-white text-black' : 'bg-black text-white'}`}
+                                    >
+                                      ENTER
+                                    </button>
+                                  </div>
+                                </motion.div>
+                              );
+                            })}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  )}
+                </>
               ) : (
                 /* Terminal List View */
                 <div className="flex flex-col gap-2 pb-8">
@@ -467,7 +580,7 @@ export default function MinimalDashboardClient({ initialRooms, clerkId }: { init
                     <div className="col-span-2">Occupants</div>
                     <div className="col-span-2 text-right">Action</div>
                   </div>
-                  {filteredRooms.map((room) => {
+                  {curatedRooms.map((room) => {
                     const currentCount = liveHeadcounts[room.slug] !== undefined ? liveHeadcounts[room.slug] : room.participantCount;
                     const isCameraOnly = room.allowCam && !room.allowMic;
 
@@ -498,10 +611,70 @@ export default function MinimalDashboardClient({ initialRooms, clerkId }: { init
                       </div>
                     )
                   })}
-                  {filteredRooms.length === 0 && (
+                  {curatedRooms.length === 0 && (
                      <div className="w-full flex items-center justify-center py-8 font-mono text-[10px] tracking-widest uppercase opacity-40">
                        [0] Instances matching filter criteria
                      </div>
+                  )}
+
+                  {userMadeRooms.length > 0 && (
+                    <div className="mt-8 flex flex-col gap-4">
+                      <div className="flex items-center">
+                        <button 
+                          onClick={() => setShowUserMade(!showUserMade)}
+                          className={`flex items-center gap-3 px-6 py-3 rounded-full font-mono text-[10px] tracking-widest uppercase transition-all duration-300 transform hover:scale-105 border ${
+                            isDark 
+                              ? 'bg-white/5 hover:bg-white/10 border-white/20 text-white' 
+                              : 'bg-black/5 hover:bg-black/10 border-black/20 text-black'
+                          }`}
+                        >
+                          <span>User-Made Instances</span>
+                          <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${showUserMade ? 'rotate-180' : ''}`} />
+                        </button>
+                      </div>
+
+                      <AnimatePresence>
+                        {showUserMade && (
+                          <motion.div 
+                            initial={{ height: 0, opacity: 0 }} 
+                            animate={{ height: 'auto', opacity: 1 }} 
+                            exit={{ height: 0, opacity: 0 }}
+                            className="flex flex-col gap-2"
+                          >
+                            {userMadeRooms.map((room) => {
+                              const currentCount = liveHeadcounts[room.slug] !== undefined ? liveHeadcounts[room.slug] : room.participantCount;
+                              const isCameraOnly = room.allowCam && !room.allowMic;
+
+                              return (
+                                <div 
+                                  key={room.id}
+                                  onClick={() => handleEnterRoom(room.slug)}
+                                  className={`group grid grid-cols-12 gap-4 items-center px-4 py-3 rounded-lg border transition-all cursor-pointer ${
+                                    isDark ? 'border-transparent hover:border-white/10 hover:bg-neutral-900/50' : 'border-transparent hover:border-black/10 hover:bg-white/50'
+                                  }`}
+                                >
+                                  <div className="col-span-5 flex flex-col">
+                                     <span className="font-bold text-sm tracking-tight uppercase truncate">{room.name}</span>
+                                     <span className="text-[9px] font-mono uppercase tracking-widest opacity-40 truncate">{room.subject}</span>
+                                  </div>
+                                  <div className="col-span-3 flex items-center gap-2">
+                                    {isCameraOnly ? <Video className="w-3.5 h-3.5 opacity-50" /> : <Volume2 className="w-3.5 h-3.5 opacity-50" />}
+                                  </div>
+                                  <div className="col-span-2 font-mono text-xs opacity-70">
+                                    {currentCount}<span className="opacity-40">/{room.capacity}</span>
+                                  </div>
+                                  <div className="col-span-2 flex justify-end">
+                                    <button className={`opacity-0 group-hover:opacity-100 transition-all px-3 py-1.5 text-[9px] font-mono font-bold tracking-widest uppercase rounded-full ${isDark ? 'bg-white text-black' : 'bg-black text-white'}`}>
+                                      &gt;_ ENTER
+                                    </button>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
                   )}
                 </div>
               )}
@@ -519,12 +692,109 @@ export default function MinimalDashboardClient({ initialRooms, clerkId }: { init
         onSettingsClick={() => {}}
         hasNotifications={false} // Handled by global NotificationBell
         pulseTrigger={false}
+        positionMode="fixed-vertical"
+        isVisible={isScrolled}
       />
       
-      <NotificationsWidget />
-      <ProfileWidget />
+      <NotificationsWidget isScrolled={isScrolled} />
+      <ProfileWidget isScrolled={isScrolled} />
+      <WeeklyProgressPanel 
+        isOpen={isProgressPanelOpen} 
+        onClose={() => setIsProgressPanelOpen(false)} 
+        initialDayIndex={selectedProgressDay} 
+        dailyHours={dailyHours} 
+      />
 
       {/* <CreateRoomModal theme={theme as any} isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onCreated={() => {}} /> */}
+
+        <AnimatePresence>
+          {expandedRoom && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-8">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                onClick={() => setExpandedRoom(null)}
+              />
+              <motion.div
+                layoutId={`room-card-${expandedRoom.id}`}
+                className={`relative z-10 w-full max-w-5xl h-[80vh] min-h-[500px] overflow-y-auto p-12 sm:p-16 rounded-[3rem] border shadow-2xl flex flex-col justify-between ${
+                  isDark ? 'bg-[#0a0a0a] border-white/10 shadow-[0_0_80px_rgba(255,255,255,0.05)]' : 'bg-[#fcfcfc] border-black/10 shadow-[0_0_80px_rgba(0,0,0,0.1)]'
+                }`}
+              >
+                <div className="flex justify-between items-start">
+                  <div className="flex flex-col gap-6 w-full lg:w-2/3">
+                    <div className="flex items-center gap-3">
+                      {expandedRoom.isCurated && <span className="text-[10px] font-mono tracking-widest px-3 py-1 rounded-full border border-sky-500/50 text-sky-400 uppercase">CURATED</span>}
+                      {expandedRoom.allowCam && !expandedRoom.allowMic && (
+                        <span className="text-[10px] font-mono tracking-widest flex items-center gap-2 text-neutral-400 border border-neutral-700 px-3 py-1 rounded-full">
+                          <Video className="w-3 h-3" /> ON | <MicOff className="w-3 h-3" /> OFF
+                        </span>
+                      )}
+                      {!expandedRoom.isCurated && (
+                         <span className="text-[10px] font-mono tracking-widest px-3 py-1 rounded-full border border-orange-500/50 text-orange-400 uppercase">USER-MADE</span>
+                      )}
+                    </div>
+                    <div>
+                      <h2 className="font-black text-5xl sm:text-6xl tracking-tighter uppercase leading-[0.85]">{expandedRoom.name}</h2>
+                      <p className="text-sm font-mono uppercase tracking-widest mt-6 opacity-70 leading-relaxed border-l-2 pl-4 border-current">
+                        {expandedRoom.subject}
+                      </p>
+                    </div>
+
+                    <div className="mt-8 flex flex-wrap gap-8">
+                      <div className="flex flex-col gap-2">
+                        <span className={`text-[10px] font-mono tracking-widest uppercase ${isDark ? 'opacity-40' : 'opacity-60'}`}>Vibe</span>
+                        <span className="font-mono text-base tracking-widest uppercase">{expandedRoom.vibe || 'Undefined'}</span>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <span className={`text-[10px] font-mono tracking-widest uppercase ${isDark ? 'opacity-40' : 'opacity-60'}`}>Visibility</span>
+                        <span className="font-mono text-base tracking-widest uppercase">{expandedRoom.visibility}</span>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <span className={`text-[10px] font-mono tracking-widest uppercase ${isDark ? 'opacity-40' : 'opacity-60'}`}>Architect</span>
+                        <span className="font-mono text-base tracking-widest uppercase">{expandedRoom.creatorName}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button 
+                    onClick={() => setExpandedRoom(null)}
+                    className="p-3 rounded-full border border-neutral-500/20 hover:bg-neutral-500/10 transition-colors"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M13 1L1 13M1 1l12 12"/>
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="mt-12 lg:mt-0 flex flex-col sm:flex-row items-center justify-between gap-8 pt-8 border-t border-neutral-500/20">
+                  <div className="flex flex-col gap-2">
+                    <span className={`text-[10px] font-mono tracking-widest uppercase ${isDark ? 'opacity-40' : 'opacity-60'}`}>Current Occupants</span>
+                    <div className="flex items-end gap-2">
+                      <span className="font-mono text-5xl tracking-tighter leading-none">{liveHeadcounts[expandedRoom.slug] !== undefined ? liveHeadcounts[expandedRoom.slug] : expandedRoom.participantCount}</span>
+                      <span className="font-mono text-xl tracking-widest opacity-40 mb-1">/{expandedRoom.capacity}</span>
+                    </div>
+                  </div>
+                  
+                  <button 
+                    onClick={() => handleEnterRoom(expandedRoom.slug)}
+                    className={`group relative overflow-hidden px-12 py-5 rounded-full font-mono font-bold tracking-widest uppercase text-xs sm:text-sm transition-transform hover:scale-105 shadow-2xl ${
+                      isDark ? 'bg-white text-black' : 'bg-black text-white'
+                    }`}
+                  >
+                    <div className="absolute inset-0 bg-current opacity-0 group-hover:opacity-10 transition-opacity" />
+                    <span className="relative z-10 flex items-center gap-3">
+                      INITIATE CONNECTION <ChevronDown className="w-4 h-4 -rotate-90" />
+                    </span>
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
     </div>
   );
 }
