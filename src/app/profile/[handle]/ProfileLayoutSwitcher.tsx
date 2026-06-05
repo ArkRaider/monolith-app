@@ -34,7 +34,6 @@ export function ProfileLayoutSwitcher({ profile, level, title, studyGrid, isOwne
       level={level} 
       title={title} 
       studyGrid={studyGrid} 
-      isOwner={isOwner}
     />
   );
 }
