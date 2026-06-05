@@ -48,7 +48,7 @@ export function MinimalLocalVideoPod({ stream, state, onStateChange, isVideoOff,
           autoPlay 
           playsInline 
           muted 
-          className={`w-full h-full object-contain aspect-video bg-black/5 block transition-opacity duration-300 ${isVideoOff ? 'hidden' : 'block'}`}
+          className={`w-full h-full object-cover bg-black/5 block transition-opacity duration-300 ${isVideoOff ? 'hidden' : 'block'}`}
         />
         
         {isVideoOff && (
@@ -67,118 +67,117 @@ export function MinimalLocalVideoPod({ stream, state, onStateChange, isVideoOff,
         )}
 
         {/* Bottom Bar: Name and Status */}
-        <div className="absolute bottom-4 left-5 right-5 z-20 flex items-center justify-between pointer-events-none drop-shadow-md">
-          <span className={`text-sm font-medium truncate ${isDark ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]' : 'text-black drop-shadow-[0_1px_3px_rgba(255,255,255,0.8)]'}`}>{displayName} (You)</span>
-          
-          {/* Status Pill */}
-          {status ? (
-            <div className={`flex-1 ml-4 text-right truncate text-xs font-medium opacity-90 ${isDark ? 'text-indigo-200 drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]' : 'text-indigo-800 drop-shadow-[0_1px_3px_rgba(255,255,255,0.8)]'}`} title={status}>
-              {status}
-            </div>
-          ) : (
-            <div className={`flex items-center justify-end gap-1.5 text-xs font-medium opacity-80 shrink-0 ml-4 ${isDark ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]' : 'text-black drop-shadow-[0_1px_3px_rgba(255,255,255,0.8)]'}`}>
-              <Edit3 size={12} /> No status
-            </div>
-          )}
-        </div>
+        {state !== 'minimized' && (
+          <div className="absolute bottom-4 left-5 right-5 z-20 flex items-center justify-between pointer-events-none drop-shadow-md">
+            <span className={`text-sm font-medium truncate ${isDark ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]' : 'text-black drop-shadow-[0_1px_3px_rgba(255,255,255,0.8)]'}`}>{displayName} (You)</span>
+            
+            {/* Status Pill */}
+            {status ? (
+              <div className={`flex-1 ml-4 text-right truncate text-xs font-medium opacity-90 ${isDark ? 'text-indigo-200 drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]' : 'text-indigo-800 drop-shadow-[0_1px_3px_rgba(255,255,255,0.8)]'}`} title={status}>
+                {status}
+              </div>
+            ) : (
+              <div className={`flex items-center justify-end gap-1.5 text-xs font-medium opacity-80 shrink-0 ml-4 ${isDark ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]' : 'text-black drop-shadow-[0_1px_3px_rgba(255,255,255,0.8)]'}`}>
+                <Edit3 size={12} /> No status
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Top action buttons */}
-      <div className="absolute top-4 right-4 z-20 flex flex-col items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        {state === 'minimized' && (
-          <button 
-            onClick={() => onStateChange('hidden')}
-            className={`p-1.5 rounded-full transition-colors text-white/70 hover:text-white hover:bg-white/10`}
-            title="Hide my video"
-          >
-            <EyeOff size={16} />
-          </button>
-        )}
-        {onTogglePin && (
-          <button 
-            onClick={onTogglePin}
-            className={`p-1.5 rounded-full transition-colors ${state === 'minimized' ? 'text-indigo-400 bg-indigo-500/10' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
-            title={state === 'minimized' ? "Show in grid" : "Minimize video"}
-          >
-            <Pin size={16} className={state === 'minimized' ? 'fill-indigo-400' : ''} />
-          </button>
-        )}
+      {state !== 'minimized' && (
+        <div className="absolute top-4 right-4 z-20 flex flex-col items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          {onTogglePin && (
+            <button 
+              onClick={onTogglePin}
+              className={`p-1.5 rounded-full transition-colors ${state === 'minimized' ? 'text-indigo-400 bg-indigo-500/10' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+              title={state === 'minimized' ? "Show in grid" : "Minimize video"}
+            >
+              <Pin size={16} className={state === 'minimized' ? 'fill-indigo-400' : ''} />
+            </button>
+          )}
 
-        <div className="relative">
-          <button 
-            onClick={(e) => { e.stopPropagation(); setIsMenuOpen(!isMenuOpen); }}
-            className={`p-1.5 rounded-full transition-colors ${isMenuOpen ? 'text-white bg-white/10' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
-            title="More options"
-          >
-            <MoreVertical size={16} />
-          </button>
+          <div className="relative">
+            <button 
+              onClick={(e) => { e.stopPropagation(); setIsMenuOpen(!isMenuOpen); }}
+              className={`p-1.5 rounded-full transition-colors ${isMenuOpen ? 'text-white bg-white/10' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+              title="More options"
+            >
+              <MoreVertical size={16} />
+            </button>
 
-          <AnimatePresence>
-            {isMenuOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)} />
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.95, y: -5 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: -5 }}
-                  transition={{ duration: 0.15, ease: "easeOut" }}
-                  className={`absolute right-full mr-2 top-0 z-50 min-w-[180px] p-[5px] rounded-[10px] border backdrop-blur-[24px] shadow-2xl flex flex-col gap-[2px] ${isDark ? 'bg-[#28282b]/90 border-white/10 shadow-black/50' : 'bg-white/90 border-black/10 shadow-black/10'}`}
-                >
-                  {onSendMessage && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsMenuOpen(false);
-                        onSendMessage();
-                      }}
-                      className={`w-full flex items-center gap-2 px-2 py-[5px] text-[13px] font-medium rounded-[5px] group/btn ${isDark ? 'text-[#e5e5e5] hover:bg-[#0058d0] hover:text-white' : 'text-[#2b2b2b] hover:bg-[#0058d0] hover:text-white'}`}
-                    >
-                      <MessageSquare size={14} className="opacity-70 group-hover/btn:opacity-100 group-hover/btn:text-white" /> 
-                      <span>Send Message</span>
-                    </button>
-                  )}
-                  {onViewProfile && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsMenuOpen(false);
-                        onViewProfile();
-                      }}
-                      className={`w-full flex items-center gap-2 px-2 py-[5px] text-[13px] font-medium rounded-[5px] group/btn ${isDark ? 'text-[#e5e5e5] hover:bg-[#0058d0] hover:text-white' : 'text-[#2b2b2b] hover:bg-[#0058d0] hover:text-white'}`}
-                    >
-                      <User size={14} className="opacity-70 group-hover/btn:opacity-100 group-hover/btn:text-white" /> 
-                      <span>View Profile</span>
-                    </button>
-                  )}
-                  {cameras && cameras.length > 1 && (
-                    <>
-                      <div className={`w-full h-px my-1 ${isDark ? 'bg-white/10' : 'bg-black/10'}`} />
-                      {cameras.map(camera => (
-                        <button
-                          key={camera.deviceId}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onCameraSwitch?.(camera.deviceId);
-                            setIsMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-2 px-2 py-[5px] text-[13px] font-medium rounded-[5px] group/btn ${
-                            selectedCamera === camera.deviceId
-                              ? (isDark ? 'bg-white/10 text-white' : 'bg-black/5 text-black')
-                              : (isDark ? 'text-[#e5e5e5] hover:bg-[#0058d0] hover:text-white' : 'text-[#2b2b2b] hover:bg-[#0058d0] hover:text-white')
-                          }`}
-                        >
-                          <Camera size={14} className={selectedCamera === camera.deviceId ? 'opacity-100' : 'opacity-70 group-hover/btn:opacity-100 group-hover/btn:text-white'} /> 
-                          <span className="truncate max-w-[120px]">{camera.label || 'Camera'}</span>
-                        </button>
-                      ))}
-                    </>
-                  )}
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
+            <AnimatePresence>
+              {isMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)} />
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                    transition={{ duration: 0.15, ease: "easeOut" }}
+                    className={`absolute right-full mr-2 top-0 z-50 min-w-[180px] p-[5px] rounded-[10px] border backdrop-blur-[24px] shadow-2xl flex flex-col gap-[2px] ${isDark ? 'bg-[#28282b]/90 border-white/10 shadow-black/50' : 'bg-white/90 border-black/10 shadow-black/10'}`}
+                  >
+                    {onSendMessage && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsMenuOpen(false);
+                          onSendMessage();
+                        }}
+                        className={`w-full flex items-center gap-2 px-2 py-[5px] text-[13px] font-medium rounded-[5px] group/btn ${isDark ? 'text-[#e5e5e5] hover:bg-[#0058d0] hover:text-white' : 'text-[#2b2b2b] hover:bg-[#0058d0] hover:text-white'}`}
+                      >
+                        <MessageSquare size={14} className="opacity-70 group-hover/btn:opacity-100 group-hover/btn:text-white" /> 
+                        <span>Send Message</span>
+                      </button>
+                    )}
+                    {onViewProfile && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsMenuOpen(false);
+                          onViewProfile();
+                        }}
+                        className={`w-full flex items-center gap-2 px-2 py-[5px] text-[13px] font-medium rounded-[5px] group/btn ${isDark ? 'text-[#e5e5e5] hover:bg-[#0058d0] hover:text-white' : 'text-[#2b2b2b] hover:bg-[#0058d0] hover:text-white'}`}
+                      >
+                        <User size={14} className="opacity-70 group-hover/btn:opacity-100 group-hover/btn:text-white" /> 
+                        <span>View Profile</span>
+                      </button>
+                    )}
+                    
+                    {cameras.length > 1 && (
+                      <>
+                        <div className={`h-[1px] my-1 ${isDark ? 'bg-white/10' : 'bg-black/10'}`} />
+                        <div className={`px-2 py-1 text-[11px] font-semibold uppercase tracking-wider ${isDark ? 'text-white/40' : 'text-black/40'}`}>
+                          Cameras
+                        </div>
+                        {cameras.map((camera) => (
+                          <button
+                            key={camera.deviceId}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsMenuOpen(false);
+                              if (onCameraSwitch) onCameraSwitch(camera.deviceId);
+                            }}
+                            className={`w-full flex items-center gap-2 px-2 py-[5px] text-[13px] font-medium rounded-[5px] group/btn ${
+                              selectedCamera === camera.deviceId 
+                                ? (isDark ? 'bg-[#0058d0]/20 text-[#0058d0]' : 'bg-[#0058d0]/10 text-[#0058d0]')
+                                : (isDark ? 'text-[#e5e5e5] hover:bg-[#0058d0] hover:text-white' : 'text-[#2b2b2b] hover:bg-[#0058d0] hover:text-white')
+                            }`}
+                          >
+                            <Camera size={14} className={selectedCamera === camera.deviceId ? "opacity-100" : "opacity-70 group-hover/btn:opacity-100 group-hover/btn:text-white"} /> 
+                            <span className="truncate flex-1 text-left">{camera.label || 'Camera'}</span>
+                          </button>
+                        ))}
+                      </>
+                    )}
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
-      </div>
+      )}
 
     </div>
   );

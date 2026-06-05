@@ -111,7 +111,7 @@ export function MinimalRemoteVideoPod({
           ref={videoRef}
           autoPlay 
           playsInline 
-          className={`w-full h-full object-contain aspect-video bg-black/5 block transition-opacity duration-300 ${!isVideoActive ? 'hidden' : 'block'}`}
+          className={`w-full h-full object-cover bg-black/5 block transition-opacity duration-300 ${!isVideoActive ? 'hidden' : 'block'}`}
         />
         
         {!isVideoActive && (

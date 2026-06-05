@@ -33,13 +33,13 @@ export function MinimalSidebar({
         >
           <Users size={22} />
         </button>
-        {localState === 'hidden' && (
+        {localState !== 'grid' && (
           <button 
-            onClick={() => setLocalState('minimized')}
+            onClick={() => setLocalState(localState === 'hidden' ? 'minimized' : 'hidden')}
             className={`p-3 rounded-2xl transition-colors opacity-50 hover:opacity-100 ${isDark ? 'hover:bg-white/10 text-white' : 'hover:bg-black/10 text-black'}`}
-            title="Show my video"
+            title={localState === 'hidden' ? "Show my video" : "Hide my video"}
           >
-            <Eye size={22} />
+            {localState === 'hidden' ? <Eye size={22} /> : <EyeOff size={22} />}
           </button>
         )}
       </div>

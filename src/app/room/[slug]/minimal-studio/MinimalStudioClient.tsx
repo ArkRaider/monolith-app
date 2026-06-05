@@ -503,7 +503,9 @@ export default function MinimalStudioClient({ slug, initialPwd, roomId, initialI
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
-            className="absolute bottom-6 right-6 w-64 h-48 z-50 cursor-grab active:cursor-grabbing shadow-2xl"
+            className="absolute bottom-6 right-6 w-64 h-48 z-50 cursor-pointer active:cursor-grabbing shadow-2xl overflow-hidden rounded-[32px]"
+            onClick={() => setLocalState('grid')}
+            title="Click to return to grid, drag to move"
           >
             <MinimalLocalVideoPod 
               stream={localStream} 
