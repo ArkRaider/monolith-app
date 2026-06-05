@@ -4,7 +4,67 @@ import { Home, Users, Flame, Moon, Sun, Eye, EyeOff } from 'lucide-react';
 import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { getUserStreak } from '@/app/actions/gamification-actions';
-import { motion } from 'framer-motion';
+import { motion, useTime, useTransform } from 'framer-motion';
+
+function Continuous3DFire({ streak }: { streak: number }) {
+  const time = useTime();
+  
+  // Combine different sine waves with prime-ish periods to prevent obvious repeating patterns
+  const rotateX = useTransform(time, (t) => Math.sin(t / 1300) * 15 + Math.cos(t / 800) * 10);
+  const rotateY = useTransform(time, (t) => Math.cos(t / 1700) * 25 + Math.sin(t / 1100) * 15);
+  const scale = useTransform(time, (t) => 1 + Math.sin(t / 600) * 0.05 + Math.cos(t / 900) * 0.05);
+  
+  // Dynamic color and glow
+  const dropShadow = useTransform(time, (t) => {
+    if (streak === 0) return 'drop-shadow(0 0 4px rgba(255,255,255,0.2))';
+    const intensity = Math.abs(Math.sin(t / 700)) * 0.3 + 0.7; // 0.7 to 1.0
+    return `drop-shadow(0 0 ${8 * intensity}px rgba(255,100,0,${0.6 * intensity})) drop-shadow(0 0 ${16 * intensity}px rgba(255,120,0,${0.8 * intensity}))`;
+  });
+
+  return (
+    <div style={{ perspective: '800px' }} className="w-8 h-8 flex items-center justify-center relative pointer-events-none">
+      <motion.div
+        style={{
+          rotateX,
+          rotateY,
+          scale,
+          filter: dropShadow,
+          transformStyle: "preserve-3d"
+        }}
+        className={`relative flex items-center justify-center ${streak > 0 ? "text-orange-500" : "text-white/30"}`}
+      >
+        {/* Back layer (larger, darker orange) */}
+        {streak > 0 && (
+          <motion.div 
+            animate={{ z: -8 }}
+            className="absolute text-orange-700/80 blur-[2px]"
+          >
+            <Flame size={24} fill="currentColor" strokeWidth={0} />
+          </motion.div>
+        )}
+        
+        {/* Middle layer (main) */}
+        <motion.div animate={{ z: 0 }}>
+          <Flame 
+            size={20} 
+            fill={streak > 0 ? "currentColor" : "none"} 
+            strokeWidth={streak > 0 ? 1 : 2}
+          />
+        </motion.div>
+
+        {/* Front layer (smaller, bright yellow) */}
+        {streak > 0 && (
+          <motion.div 
+            animate={{ z: 8 }}
+            className="absolute text-yellow-300"
+          >
+            <Flame size={12} fill="currentColor" strokeWidth={0} className="mt-2" />
+          </motion.div>
+        )}
+      </motion.div>
+    </div>
+  );
+}
 
 interface MinimalSidebarProps {
   isDark: boolean;
@@ -58,35 +118,7 @@ export function MinimalSidebar({
 
       <div className="flex flex-col items-center gap-6">
         <div className={`flex flex-col items-center gap-1 font-bold text-xs ${isDark ? 'text-white/60 drop-shadow-[0_0_4px_rgba(255,255,255,0.3)]' : 'text-black/60 drop-shadow-[0_0_4px_rgba(0,0,0,0.3)]'}`}>
-          <motion.div
-            animate={{
-              scale: [1, 1.15, 0.95, 1.05, 1],
-              rotate: [-4, 4, -2, 3, 0],
-              filter: streak > 0 ? [
-                'drop-shadow(0 0 4px rgba(255,100,0,0.5))',
-                'drop-shadow(0 0 12px rgba(255,120,0,0.8))',
-                'drop-shadow(0 0 6px rgba(255,80,0,0.6))',
-                'drop-shadow(0 0 10px rgba(255,120,0,0.7))',
-                'drop-shadow(0 0 4px rgba(255,100,0,0.5))',
-              ] : [
-                'drop-shadow(0 0 2px rgba(255,255,255,0.1))',
-                'drop-shadow(0 0 6px rgba(255,255,255,0.3))',
-                'drop-shadow(0 0 2px rgba(255,255,255,0.1))',
-              ]
-            }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-            className={streak > 0 ? "text-orange-500" : ""}
-          >
-            <Flame 
-              size={20} 
-              fill={streak > 0 ? "currentColor" : "none"} 
-              strokeWidth={streak > 0 ? 1.5 : 2}
-            />
-          </motion.div>
+          <Continuous3DFire streak={streak} />
           {streak}
         </div>
         <button onClick={() => setTheme(isDark ? 'light' : 'dark')} className={`p-2 transition-all duration-300 opacity-60 hover:opacity-100 ${isDark ? 'text-white hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'text-black hover:drop-shadow-[0_0_8px_rgba(0,0,0,0.5)]'}`}>
