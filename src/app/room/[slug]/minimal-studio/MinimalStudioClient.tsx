@@ -183,10 +183,29 @@ export default function MinimalStudioClient({ slug, initialPwd, roomId, initialI
     
     const initMedia = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: initCam, audio: initMic });
+        let videoConstraints: boolean | MediaTrackConstraints = initCam;
+        if (initCam) {
+          const savedCamera = localStorage.getItem('selectedCamera');
+          if (savedCamera) {
+            videoConstraints = { deviceId: { exact: savedCamera } };
+          }
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: initMic });
         setLocalStream(stream);
         setCameraError(false);
       } catch (err) {
+        // Fallback to any camera if the saved one fails or is disconnected
+        if (initCam && localStorage.getItem('selectedCamera')) {
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: initMic });
+            setLocalStream(stream);
+            setCameraError(false);
+            return;
+          } catch (fallbackErr) {
+            console.error('Fallback failed', fallbackErr);
+          }
+        }
         console.error('Failed to access media devices', err);
         setCameraError(true);
       }
@@ -245,7 +264,10 @@ export default function MinimalStudioClient({ slug, initialPwd, roomId, initialI
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoInputs = devices.filter(d => d.kind === 'videoinput');
       setCameras(videoInputs);
-      if (videoInputs.length > 0 && !selectedCamera) {
+      const savedCamera = localStorage.getItem('selectedCamera');
+      if (savedCamera && videoInputs.some(d => d.deviceId === savedCamera)) {
+        setSelectedCamera(savedCamera);
+      } else if (videoInputs.length > 0 && !selectedCamera) {
         setSelectedCamera(videoInputs[0].deviceId);
       }
     } catch (err) {}
@@ -259,6 +281,7 @@ export default function MinimalStudioClient({ slug, initialPwd, roomId, initialI
 
   const switchCamera = async (deviceId: string) => {
     setSelectedCamera(deviceId);
+    localStorage.setItem('selectedCamera', deviceId);
     if (!isVideoOff && localStream) {
       localStream.getVideoTracks().forEach(t => t.stop());
       try {
@@ -281,6 +304,17 @@ export default function MinimalStudioClient({ slug, initialPwd, roomId, initialI
         setIsVideoOff(false);
         getCameras();
       } catch (err) {
+        if (selectedCamera) {
+          try {
+            const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            setLocalStream(fallbackStream);
+            setIsVideoOff(false);
+            getCameras();
+            return;
+          } catch (fallbackErr) {
+            console.error(fallbackErr);
+          }
+        }
         console.error(err);
       }
       return;
@@ -296,6 +330,17 @@ export default function MinimalStudioClient({ slug, initialPwd, roomId, initialI
         setIsVideoOff(false);
         getCameras();
       } catch (err) {
+        if (selectedCamera) {
+          try {
+            const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            fallbackStream.getVideoTracks().forEach(t => localStream.addTrack(t));
+            setIsVideoOff(false);
+            getCameras();
+            return;
+          } catch (fallbackErr) {
+            console.error(fallbackErr);
+          }
+        }
         console.error(err);
       }
     } else {
