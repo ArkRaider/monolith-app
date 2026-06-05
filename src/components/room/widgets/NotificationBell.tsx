@@ -53,11 +53,11 @@ export function NotificationBell({
             initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            transition={{ duration: 0.15 }}
-            className="absolute top-[120%] right-0 mt-4 w-80 bg-black/60 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col z-50"
+            transition={{ duration: 0.15, ease: "easeOut" }}
+            className="absolute top-[120%] right-0 mt-4 w-80 bg-[#1e1e20]/70 backdrop-blur-[40px] border border-white/10 rounded-[24px] shadow-[0_16px_40px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col z-50 ring-1 ring-white/5"
           >
-            <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
-              <h3 className="font-semibold text-white">Notifications</h3>
+            <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
+              <h3 className="font-medium text-sm text-white/90">Notifications</h3>
               {unreadCount > 0 && (
                 <button
                   onClick={markAllAsRead}
@@ -79,7 +79,7 @@ export function NotificationBell({
                       key={notif.id}
                       onClick={() => markAsRead(notif.id)}
                       className={`p-4 border-b border-white/5 transition-colors cursor-pointer ${
-                        notif.read ? 'opacity-60 hover:bg-white/5' : 'bg-white/5 hover:bg-white/10'
+                        notif.read ? 'opacity-60 hover:bg-white/5' : 'bg-white/[0.04] hover:bg-white/[0.08]'
                       }`}
                     >
                       <div className="flex gap-3">
