@@ -1,7 +1,9 @@
 'use client';
 
 import { Home, Users, Flame, Moon, Sun, Eye, EyeOff } from 'lucide-react';
-import { Dispatch, SetStateAction } from 'react';
+import { Dispatch, SetStateAction, useEffect, useState } from 'react';
+import { useUser } from '@clerk/nextjs';
+import { getUserStreak } from '@/app/actions/gamification-actions';
 
 interface MinimalSidebarProps {
   isDark: boolean;
@@ -20,36 +22,45 @@ export function MinimalSidebar({
   localState,
   setLocalState
 }: MinimalSidebarProps) {
+  const { user } = useUser();
+  const [streak, setStreak] = useState(0);
+
+  useEffect(() => {
+    if (user) {
+      getUserStreak(user.id).then(setStreak).catch(console.error);
+    }
+  }, [user]);
+
   return (
-    <aside className={`fixed left-6 top-6 bottom-6 w-16 z-50 flex flex-col items-center py-6 rounded-[32px] border backdrop-blur-2xl transition-all duration-700 ${isDark ? 'bg-neutral-950/70 border-white/10 shadow-2xl' : 'bg-white/70 border-black/10 shadow-xl'}`}>
+    <aside className={`fixed left-4 top-6 bottom-6 w-14 z-50 flex flex-col items-center py-6 rounded-full border backdrop-blur-2xl transition-all duration-700 ${isDark ? 'bg-[#1e1e20]/60 border-white/10 shadow-2xl' : 'bg-white/60 border-black/10 shadow-xl'}`}>
       <div className="flex-1 flex flex-col items-center gap-6">
-        <button className={`p-3 rounded-2xl transition-colors opacity-70 hover:opacity-100 ${isDark ? 'text-white hover:bg-white/10' : 'text-black hover:bg-black/10'}`}>
+        <button className={`p-2 transition-all duration-300 opacity-60 hover:opacity-100 ${isDark ? 'text-white hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'text-black hover:drop-shadow-[0_0_8px_rgba(0,0,0,0.5)]'}`}>
           <Home size={20} />
         </button>
         <button 
           onClick={() => setIsPeoplePanelOpen(!isPeoplePanelOpen)}
-          className={`p-3 rounded-2xl transition-colors ${isPeoplePanelOpen ? (isDark ? 'bg-white/10 text-white' : 'bg-black/10 text-black') : (isDark ? 'opacity-50 hover:opacity-100 hover:bg-white/10 text-white' : 'opacity-50 hover:opacity-100 hover:bg-black/10 text-black')}`}
+          className={`p-2 transition-all duration-300 ${isPeoplePanelOpen ? (isDark ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'text-black drop-shadow-[0_0_8px_rgba(0,0,0,0.5)]') : (isDark ? 'opacity-60 hover:opacity-100 text-white hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'opacity-60 hover:opacity-100 text-black hover:drop-shadow-[0_0_8px_rgba(0,0,0,0.5)]')}`}
           title="Toggle People Panel"
         >
-          <Users size={22} />
+          <Users size={20} />
         </button>
         {localState !== 'grid' && (
           <button 
             onClick={() => setLocalState(localState === 'hidden' ? 'minimized' : 'hidden')}
-            className={`p-3 rounded-2xl transition-colors opacity-50 hover:opacity-100 ${isDark ? 'hover:bg-white/10 text-white' : 'hover:bg-black/10 text-black'}`}
+            className={`p-2 transition-all duration-300 opacity-60 hover:opacity-100 ${isDark ? 'text-white hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'text-black hover:drop-shadow-[0_0_8px_rgba(0,0,0,0.5)]'}`}
             title={localState === 'hidden' ? "Show my video" : "Hide my video"}
           >
-            {localState === 'hidden' ? <Eye size={22} /> : <EyeOff size={22} />}
+            {localState === 'hidden' ? <Eye size={20} /> : <EyeOff size={20} />}
           </button>
         )}
       </div>
 
       <div className="flex flex-col items-center gap-6">
-        <div className={`flex flex-col items-center gap-1 font-bold text-xs ${isDark ? 'text-neutral-400' : 'text-neutral-500'}`}>
-          <Flame size={24} />
-          0
+        <div className={`flex flex-col items-center gap-1 font-bold text-xs ${isDark ? 'text-white/60 drop-shadow-[0_0_4px_rgba(255,255,255,0.3)]' : 'text-black/60 drop-shadow-[0_0_4px_rgba(0,0,0,0.3)]'}`}>
+          <Flame size={20} />
+          {streak}
         </div>
-        <button onClick={() => setTheme(isDark ? 'light' : 'dark')} className={`p-3 rounded-2xl transition-colors opacity-50 hover:opacity-100 ${isDark ? 'hover:bg-white/10 text-white' : 'hover:bg-black/10 text-black'}`}>
+        <button onClick={() => setTheme(isDark ? 'light' : 'dark')} className={`p-2 transition-all duration-300 opacity-60 hover:opacity-100 ${isDark ? 'text-white hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'text-black hover:drop-shadow-[0_0_8px_rgba(0,0,0,0.5)]'}`}>
           {isDark ? <Sun size={20} /> : <Moon size={20} />}
         </button>
       </div>

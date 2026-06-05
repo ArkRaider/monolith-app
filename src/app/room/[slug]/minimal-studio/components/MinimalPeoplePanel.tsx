@@ -38,15 +38,15 @@ export function MinimalPeoplePanel({
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: -320, opacity: 0 }}
           transition={{ type: "spring", bounce: 0, duration: 0.4 }}
-          className={`fixed left-28 top-6 bottom-6 w-80 z-50 border rounded-[32px] ${isDark ? 'bg-[#181a20]/95 border-white/10' : 'bg-white/95 border-black/10'} backdrop-blur-2xl shadow-2xl flex flex-col`}
+          className={`fixed left-24 top-6 bottom-6 w-80 z-50 border rounded-[24px] ${isDark ? 'bg-[#1e1e20]/70 border-white/10 shadow-[0_16px_40px_rgba(0,0,0,0.5)] ring-1 ring-white/5' : 'bg-white/60 border-black/10 shadow-[0_16px_40px_rgba(0,0,0,0.1)] ring-1 ring-black/5'} backdrop-blur-[40px] overflow-hidden flex flex-col`}
         >
-          <div className={`p-6 border-b ${borderColor} flex items-center justify-between`}>
+          <div className={`p-6 border-b ${isDark ? 'border-white/5 bg-white/[0.02]' : 'border-black/5 bg-black/[0.02]'} flex items-center justify-between`}>
             <h2 className="text-lg font-bold">Participants ({peers.length + 1})</h2>
           </div>
           
           <div className="flex-1 overflow-y-auto p-4 space-y-2">
             {/* Local User */}
-            <div className={`flex items-center gap-3 p-3 rounded-xl ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'} transition-colors`}>
+            <div className={`flex items-center gap-3 p-3 rounded-xl ${isDark ? 'hover:bg-white/[0.08] bg-white/[0.02]' : 'hover:bg-black/[0.08] bg-black/[0.02]'} transition-colors`}>
               <div className="relative">
                 {avatarUrl ? (
                   <img src={avatarUrl} alt={displayName} className="w-10 h-10 rounded-full border border-white/10" />
@@ -65,7 +65,7 @@ export function MinimalPeoplePanel({
             
             {/* Peers */}
             {peers.map(peer => (
-              <div key={peer.peerID} className={`flex items-center gap-3 p-3 rounded-xl ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'} transition-colors group`}>
+              <div key={peer.peerID} className={`flex items-center gap-3 p-3 rounded-xl ${isDark ? 'hover:bg-white/[0.08] bg-white/[0.02]' : 'hover:bg-black/[0.08] bg-black/[0.02]'} transition-colors group`}>
                 <div className="flex-shrink-0 relative">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold border border-white/10 ${isDark ? 'bg-white/10' : 'bg-black/10'}`}>
                     {peer.user?.firstName?.[0] || (peer.user?.handle || 'U').charAt(0).toUpperCase()}
